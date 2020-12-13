@@ -689,9 +689,11 @@ static nni_proto_sock_ops rep0_sock_ops = {
 };
 
 static nni_proto rep0_proto = {
+    // 协议版本信息
 	.proto_version  = NNI_PROTOCOL_VERSION,
 	.proto_self     = { NNG_REP0_SELF, NNG_REP0_SELF_NAME },
 	.proto_peer     = { NNG_REP0_PEER, NNG_REP0_PEER_NAME },
+    // 协议flags
 	.proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
 	.proto_sock_ops = &rep0_sock_ops,
 	.proto_pipe_ops = &rep0_pipe_ops,

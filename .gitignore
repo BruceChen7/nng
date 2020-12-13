@@ -11,3 +11,4 @@ etc/nng.sublime-workspace
 cmake-build-*
 docs/**/*.html
 .clangd
+compile_commands.json

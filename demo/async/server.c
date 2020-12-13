@@ -72,7 +72,9 @@ server_cb(void *arg)
 	int          rv;
 	uint32_t     when;
 
+    // 状态机
 	switch (work->state) {
+    // 接收数据流
 	case INIT:
 		work->state = RECV;
 		nng_ctx_recv(work->ctx, work->aio);
@@ -137,6 +139,7 @@ int
 server(const char *url)
 {
 	nng_socket   sock;
+    // 多个worker
 	struct work *works[PARALLEL];
 	int          rv;
 	int          i;

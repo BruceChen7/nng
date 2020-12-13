@@ -23,7 +23,9 @@
 void
 nni_list_init_offset(nni_list *list, size_t offset)
 {
+    // 初始化offset值
 	list->ll_offset       = offset;
+    // 设置head的对应的节点指针
 	list->ll_head.ln_next = &list->ll_head;
 	list->ll_head.ln_prev = &list->ll_head;
 }
@@ -47,12 +49,14 @@ nni_list_last(const nni_list *list)
 	if (node == &list->ll_head) {
 		return (NULL);
 	}
+    // 获取节点信息
 	return (ITEM(list, node));
 }
 
 void
 nni_list_append(nni_list *list, void *item)
 {
+    // 获取该node节点, item结构体中插入了node节点，通过这种方式来获取
 	nni_list_node *node = NODE(list, item);
 
 	if ((node->ln_next != NULL) || (node->ln_prev != NULL)) {

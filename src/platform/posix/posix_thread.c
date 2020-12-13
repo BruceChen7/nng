@@ -34,6 +34,7 @@ static int             nni_plat_inited    = 0;
 static int             nni_plat_forked    = 0;
 
 pthread_condattr_t  nni_cvattr;
+// 初始化线程的属性
 pthread_mutexattr_t nni_mxattr;
 pthread_attr_t      nni_thrattr;
 
@@ -166,6 +167,7 @@ nni_plat_cv_init(nni_plat_cv *cv, nni_plat_mtx *mtx)
 void
 nni_plat_cv_wake(nni_plat_cv *cv)
 {
+    // 广播所有的信号
 	nni_pthread_cond_broadcast(&cv->cv);
 }
 
@@ -227,6 +229,7 @@ nni_plat_thr_init(nni_plat_thr *thr, void (*fn)(void *), void *arg)
 	thr->func = fn;
 	thr->arg  = arg;
 
+    // 创建线程
 	// POSIX wants functions to return a void *, but we don't care.
 	rv = pthread_create(&thr->tid, &nni_thrattr, nni_plat_thr_main, thr);
 	if (rv != 0) {
@@ -289,9 +292,11 @@ nni_plat_init(int (*helper)(void))
 {
 	int rv;
 
+    // 不可重复fork
 	if (nni_plat_forked) {
 		nni_panic("nng is not fork-reentrant safe");
 	}
+    // 已经初始化
 	if (nni_plat_inited) {
 		return (0); // fast path
 	}
@@ -303,7 +308,9 @@ nni_plat_init(int (*helper)(void))
 	}
 
 	if ((pthread_mutexattr_init(&nni_mxattr) != 0) ||
+            // 初始化条件变量的属性
 	    (pthread_condattr_init(&nni_cvattr) != 0) ||
+        // 初始化线程的属性
 	    (pthread_attr_init(&nni_thrattr) != 0)) {
 		// Technically this is leaking, but it should never
 		// occur, so really not worried about it.
@@ -356,6 +363,7 @@ nni_plat_init(int (*helper)(void))
 		return (rv);
 	}
 
+    // fork时设置has_been_forked
 	if (pthread_atfork(NULL, NULL, nni_atfork_child) != 0) {
 		pthread_mutex_unlock(&nni_plat_init_lock);
 		nni_posix_resolv_sysfini();

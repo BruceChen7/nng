@@ -14,6 +14,7 @@
 
 // In order to make life easy, we just define the list structures
 // directly, and let consumers directly inline structures.
+// 直接在每个节点
 typedef struct nni_list_node {
 	struct nni_list_node *ln_next;
 	struct nni_list_node *ln_prev;
@@ -21,6 +22,7 @@ typedef struct nni_list_node {
 
 typedef struct nni_list {
 	struct nni_list_node ll_head;
+    // 这个offset是哪个?
 	size_t               ll_offset;
 } nni_list;
 

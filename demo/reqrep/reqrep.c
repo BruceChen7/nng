@@ -73,6 +73,7 @@ server(const char *url)
 	nng_socket sock;
 	int        rv;
 
+    // 打开socket
 	if ((rv = nng_rep0_open(&sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
@@ -150,6 +151,7 @@ client(const char *url)
 int
 main(const int argc, const char **argv)
 {
+    // 根据不同的命令进入server或者是client模式
 	if ((argc > 1) && (strcmp(CLIENT, argv[1]) == 0))
 		return (client(argv[2]));
 

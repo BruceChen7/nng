@@ -58,6 +58,7 @@ nni_reap(nni_reap_item *item, nni_cb func, void *ptr)
 	nni_mtx_lock(&reap_mtx);
 	item->r_func = func;
 	item->r_ptr  = ptr;
+    // 用于添加回收资源
 	nni_list_append(&reap_list, item);
 	reap_empty = false;
 	nni_cv_wake(&reap_cv);

@@ -12,14 +12,20 @@
 
 typedef struct nni_taskq_thr nni_taskq_thr;
 struct nni_taskq_thr {
+    // 任务列表
 	nni_taskq *tqt_tq;
 	nni_thr    tqt_thread;
 };
 struct nni_taskq {
+    // 任务列表
 	nni_list       tq_tasks;
+    // mutex
 	nni_mtx        tq_mtx;
+    //
 	nni_cv         tq_sched_cv;
+    // 条件变量
 	nni_cv         tq_wait_cv;
+    // 线程列表
 	nni_taskq_thr *tq_threads;
 	int            tq_nthreads;
 	bool           tq_run;
@@ -27,23 +33,28 @@ struct nni_taskq {
 
 static nni_taskq *nni_taskq_systq = NULL;
 
+// 每个任务线程任务数
 static void
 nni_taskq_thread(void *self)
 {
 	nni_taskq_thr *thr = self;
+    // 任务列表
 	nni_taskq *    tq  = thr->tqt_tq;
 	nni_task *     task;
 
-        nni_thr_set_name(NULL, "nng:task");
+    // 设置线程名字
+    nni_thr_set_name(NULL, "nng:task");
 
-        nni_mtx_lock(&tq->tq_mtx);
+    nni_mtx_lock(&tq->tq_mtx);
 	for (;;) {
+        // 从任务列表种，获取任务
 		if ((task = nni_list_first(&tq->tq_tasks)) != NULL) {
 
 			nni_list_remove(&tq->tq_tasks, task);
 
 			nni_mtx_unlock(&tq->tq_mtx);
 
+            // 执行任务
 			task->task_cb(task->task_arg);
 
 			nni_mtx_lock(&task->task_mtx);
@@ -58,11 +69,14 @@ nni_taskq_thread(void *self)
 			continue;
 		}
 
+        // 任务系统没有开启
 		if (!tq->tq_run) {
 			break;
 		}
+        // 否则等待被调度
 		nni_cv_wait(&tq->tq_sched_cv);
 	}
+    // 释放任务锁
 	nni_mtx_unlock(&tq->tq_mtx);
 }
 
@@ -71,24 +85,31 @@ nni_taskq_init(nni_taskq **tqp, int nthr)
 {
 	nni_taskq *tq;
 
+    // 初始化任务队列
 	if ((tq = NNI_ALLOC_STRUCT(tq)) == NULL) {
 		return (NNG_ENOMEM);
 	}
+    // 数组初始化
 	if ((tq->tq_threads = NNI_ALLOC_STRUCTS(tq->tq_threads, nthr)) ==
 	    NULL) {
 		NNI_FREE_STRUCT(tq);
 		return (NNG_ENOMEM);
 	}
+    // 线程数
 	tq->tq_nthreads = nthr;
+    // 初始化队列头
 	NNI_LIST_INIT(&tq->tq_tasks, nni_task, task_node);
 
+    // 初始化锁
 	nni_mtx_init(&tq->tq_mtx);
+    // 初始化条件变量
 	nni_cv_init(&tq->tq_sched_cv, &tq->tq_mtx);
 	nni_cv_init(&tq->tq_wait_cv, &tq->tq_mtx);
 
 	for (int i = 0; i < nthr; i++) {
 		int rv;
 		tq->tq_threads[i].tqt_tq = tq;
+        // 初始化线程，开启多个线程
 		rv = nni_thr_init(&tq->tq_threads[i].tqt_thread,
 		    nni_taskq_thread, &tq->tq_threads[i]);
 		if (rv != 0) {
@@ -96,6 +117,7 @@ nni_taskq_init(nni_taskq **tqp, int nthr)
 			return (rv);
 		}
 	}
+    // 设置开始启动
 	tq->tq_run = true;
 	for (int i = 0; i < tq->tq_nthreads; i++) {
 		nni_thr_run(&tq->tq_threads[i].tqt_thread);
@@ -170,6 +192,7 @@ nni_task_dispatch(nni_task *task)
 
 	nni_mtx_lock(&tq->tq_mtx);
 	nni_list_append(&tq->tq_tasks, task);
+    // 唤醒一个工作线程
 	nni_cv_wake1(&tq->tq_sched_cv); // waking just one waiter is adequate
 	nni_mtx_unlock(&tq->tq_mtx);
 }

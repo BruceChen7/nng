@@ -14,9 +14,12 @@
 #include "core/defs.h"
 #include "core/platform.h"
 
+// 线程的标识
 struct nni_thr {
+    // os-native 线程
 	nni_plat_thr thr;
 	nni_plat_mtx mtx;
+    // 开始启动的条件变量
 	nni_plat_cv  cv;
 	nni_thr_func fn;
 	void *       arg;

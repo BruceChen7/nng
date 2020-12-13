@@ -135,15 +135,18 @@ server(const char *url)
 	int          i;
 
 	/*  Create the socket. */
+    // 创建socket
 	rv = nng_rep0_open_raw(&sock);
 	if (rv != 0) {
 		fatal("nng_rep0_open", rv);
 	}
 
+    // 多个worker线程
 	for (i = 0; i < PARALLEL; i++) {
 		works[i] = alloc_work(sock);
 	}
 
+    // 设置监听
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
 	}
@@ -207,11 +210,13 @@ main(int argc, char **argv)
 {
 	int rc;
 
+    // 解析命令行参数
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s <url> [-s|<secs>]\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
 	if (strcmp(argv[2], "-s") == 0) {
+        // 第二个参数是-s
 		rc = server(argv[1]);
 	} else {
 		rc = client(argv[1], argv[2]);

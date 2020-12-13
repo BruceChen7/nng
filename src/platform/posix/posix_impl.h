@@ -64,7 +64,9 @@ struct nni_plat_cv {
 };
 
 struct nni_plat_thr {
+    // 线程id
 	pthread_t tid;
+    // 线程入口
 	void (*func)(void *);
 	void *arg;
 };

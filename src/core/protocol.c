@@ -58,12 +58,14 @@ nni_proto_open(nng_socket *sockidp, const nni_proto *proto)
 	int       rv;
 	nni_sock *sock;
 
+    // 初始化
 	if (((rv = nni_init()) != 0) || ((rv = nni_proto_init(proto)) != 0)) {
 		return (rv);
 	}
 	if ((rv = nni_sock_open(&sock, proto)) == 0) {
 		nng_socket s;
 		s.id     = nni_sock_id(sock); // Keep socket held open.
+        // 设置给用户端
 		*sockidp = s;
 	}
 	return (rv);

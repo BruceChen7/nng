@@ -47,8 +47,10 @@ struct req0_ctx {
 
 // A req0_sock is our per-socket protocol private structure.
 struct req0_sock {
+    // int32_t
 	nni_duration   retry;
 	bool           closed;
+    // 原子tittl
 	nni_atomic_int ttl;
 	req0_ctx       master; // base socket master
 	nni_list       ready_pipes;
@@ -816,8 +818,10 @@ static nni_proto_ctx_ops req0_ctx_ops = {
 	.ctx_options = req0_ctx_options,
 };
 
+// socket option 定义
 static nni_option req0_sock_options[] = {
 	{
+        // max ttl
 	    .o_name = NNG_OPT_MAXTTL,
 	    .o_get  = req0_sock_get_max_ttl,
 	    .o_set  = req0_sock_set_max_ttl,

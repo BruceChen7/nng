@@ -479,6 +479,7 @@ nni_aio_expire_loop(void *unused)
 		nni_aio *        aio;
 		int              rv;
 
+        // 获取当前时间戳
 		now = nni_clock();
 
 		nni_mtx_lock(&nni_aio_lk);
@@ -678,6 +679,7 @@ nni_aio_sys_init(void)
 		return (rv);
 	}
 
+    // 这里设置开始运行
 	nni_aio_expire_run = 1;
 	nni_thr_run(thr);
 	return (0);

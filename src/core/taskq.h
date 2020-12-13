@@ -59,6 +59,7 @@ extern void nni_taskq_sys_fini(void);
 // nni_task_framework.  Placing here allows for inlining this in
 // consuming structures.
 struct nni_task {
+    // task 链表节点
 	nni_list_node task_node;
 	void *        task_arg;
 	nni_cb        task_cb;

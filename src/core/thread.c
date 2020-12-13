@@ -86,15 +86,22 @@ nni_thr_wrap(void *arg)
 	int      start;
 
 	nni_plat_mtx_lock(&thr->mtx);
+    // 初始化时，等待通知
 	while (((start = thr->start) == 0) && (thr->stop == 0)) {
+        // 在主线程通过调用
+        // nni_thr_run(&tq->tq_threads[i].tqt_thread);
+        // 来唤醒，此时start将为1
 		nni_plat_cv_wait(&thr->cv);
 	}
 	nni_plat_mtx_unlock(&thr->mtx);
 	if ((start) && (thr->fn != NULL)) {
+        // 启动主线程逻辑
 		thr->fn(thr->arg);
 	}
 	nni_plat_mtx_lock(&thr->mtx);
+    // 结束线程
 	thr->done = 1;
+    // 唤醒条件变量
 	nni_plat_cv_wake(&thr->cv);
 	nni_plat_mtx_unlock(&thr->mtx);
 }
@@ -104,12 +111,14 @@ nni_thr_init(nni_thr *thr, nni_thr_func fn, void *arg)
 {
 	int rv;
 
+    // 线程上下文初始化列表
 	thr->done  = 0;
 	thr->start = 0;
 	thr->stop  = 0;
 	thr->fn    = fn;
 	thr->arg   = arg;
 
+    // 初始化线程锁和条件变量
 	nni_plat_mtx_init(&thr->mtx);
 	nni_plat_cv_init(&thr->cv, &thr->mtx);
 
@@ -118,6 +127,7 @@ nni_thr_init(nni_thr *thr, nni_thr_func fn, void *arg)
 		thr->done = 1;
 		return (0);
 	}
+    // 创建线程
 	if ((rv = nni_plat_thr_init(&thr->thr, nni_thr_wrap, thr)) != 0) {
 		thr->done = 1;
 		nni_plat_cv_fini(&thr->cv);
@@ -131,6 +141,7 @@ nni_thr_init(nni_thr *thr, nni_thr_func fn, void *arg)
 void
 nni_thr_run(nni_thr *thr)
 {
+    // 设置start为开始
 	nni_plat_mtx_lock(&thr->mtx);
 	thr->start = 1;
 	nni_plat_cv_wake(&thr->cv);

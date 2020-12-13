@@ -120,6 +120,7 @@ struct nni_proto_sock_ops {
 	nni_option *sock_options;
 };
 
+// 标识node节点
 typedef struct nni_proto_id {
 	uint16_t    p_id;
 	const char *p_name;
