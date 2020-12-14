@@ -220,6 +220,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 		return (NNG_ECLOSED);
 	}
 
+    // 双肩socket
 	if ((fd = socket(ss.ss_family, SOCK_STREAM | SOCK_CLOEXEC, 0)) < 0) {
 		nni_mtx_unlock(&l->mtx);
 		return (nni_plat_errno(errno));
@@ -244,6 +245,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 	}
 #endif
 
+    // 绑定地址
 	if (bind(fd, (struct sockaddr *) &ss, len) < 0) {
 		rv = nni_plat_errno(errno);
 		nni_mtx_unlock(&l->mtx);
@@ -251,6 +253,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 		return (rv);
 	}
 
+    // listen
 	// Listen -- 128 depth is probably sufficient.  If it isn't, other
 	// bad things are going to happen.
 	if (listen(fd, 128) != 0) {
@@ -262,7 +265,9 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
 
 	nni_posix_pfd_set_cb(pfd, tcp_listener_cb, l);
 
+    // listen fid
 	l->pfd     = pfd;
+    // 已经创建
 	l->started = true;
 	nni_mtx_unlock(&l->mtx);
 

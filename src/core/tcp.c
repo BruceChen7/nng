@@ -382,6 +382,7 @@ tcp_listener_alloc_addr(nng_stream_listener **lp, const nng_sockaddr *sa)
 	}
 	l->sa = *sa;
 
+    // 初始化对一个的回调函数
 	l->ops.sl_free   = tcp_listener_free;
 	l->ops.sl_close  = tcp_listener_close;
 	l->ops.sl_listen = tcp_listener_listen;

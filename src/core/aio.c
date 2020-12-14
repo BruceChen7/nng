@@ -68,6 +68,8 @@ nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 {
     // 初始化
     memset(aio, 0, sizeof(*aio));
+    // 使用系统队列
+    // 初始化任务
     nni_task_init(&aio->a_task, NULL, cb, arg);
     // 过期时间
     aio->a_expire  = NNI_TIME_NEVER;

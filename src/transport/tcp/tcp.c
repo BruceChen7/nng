@@ -1090,6 +1090,7 @@ tcptran_ep_bind(void *arg)
     return (rv);
 }
 
+// 用于accept一个连接
 static void
 tcptran_ep_accept(void *arg, nni_aio *aio)
 {
@@ -1100,6 +1101,7 @@ tcptran_ep_accept(void *arg, nni_aio *aio)
         return;
     }
     nni_mtx_lock(&ep->mtx);
+    // 已经关闭
     if (ep->closed) {
         nni_mtx_unlock(&ep->mtx);
         nni_aio_finish_error(aio, NNG_ECLOSED);
@@ -1218,6 +1220,7 @@ static nni_tran_dialer_ops tcptran_dialer_ops = {
     .d_setopt  = tcptran_dialer_setopt,
 };
 
+// 对于tcp的
 static nni_tran_listener_ops tcptran_listener_ops = {
     .l_init   = tcptran_listener_init,
     .l_fini   = tcptran_ep_fini,

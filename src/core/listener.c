@@ -257,10 +257,12 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 
     // 用于accept aio
     nni_aio_init(&l->l_acc_aio, listener_accept_cb, l);
-    // 用于超时的
+    // 用于超时的aio
     nni_aio_init(&l->l_tmo_aio, listener_timer_cb, l);
 
     nni_mtx_lock(&listeners_lk);
+    // 分配l_id
+    // listeners是一个全局的列表
     rv = nni_id_alloc(&listeners, &l->l_id, l);
     nni_mtx_unlock(&listeners_lk);
 

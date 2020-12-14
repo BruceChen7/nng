@@ -90,7 +90,7 @@ nni_taskq_init(nni_taskq **tqp, int nthr)
     if ((tq = NNI_ALLOC_STRUCT(tq)) == NULL) {
         return (NNG_ENOMEM);
     }
-    // 数组初始化
+    // 数组初始化，初始化多个线程
     if ((tq->tq_threads = NNI_ALLOC_STRUCTS(tq->tq_threads, nthr)) ==
         NULL) {
         NNI_FREE_STRUCT(tq);
