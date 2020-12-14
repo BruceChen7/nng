@@ -60,6 +60,7 @@ struct nni_socket {
     uint32_t s_id;
     uint32_t s_flags;
     unsigned s_ref;  // protected by global lock
+    // 具体的协议
     void *   s_data; // Protocol private
     size_t   s_size;
 
@@ -70,8 +71,11 @@ struct nni_socket {
     nni_proto_id s_self_id;
     nni_proto_id s_peer_id;
 
+    // 协议pipe操作选项
     nni_proto_pipe_ops s_pipe_ops;
+    // 协议实体操作选项
     nni_proto_sock_ops s_sock_ops;
+    // 协议上下文操作选项
     nni_proto_ctx_ops  s_ctx_ops;
 
     // options
@@ -1641,9 +1645,11 @@ nni_dialer_reap(nni_dialer *d)
     nni_dialer_destroy(d);
 }
 
+// 对于服务端listern会创建pipe
 void
 nni_listener_add_pipe(nni_listener *l, void *tpipe)
 {
+    // listen socket
     nni_sock *s = l->l_sock;
     nni_pipe *p;
 
@@ -1654,6 +1660,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         return;
     }
 
+    // listen pip
     nni_list_append(&l->l_pipes, p);
     nni_list_append(&s->s_pipes, p);
     nni_mtx_unlock(&s->s_mx);
@@ -1674,6 +1681,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         nni_pipe_rele(p);
         return;
     }
+    // 传入的应该是各个协议实现对应的pip
     if (p->p_proto_ops.pipe_start(p->p_proto_data) != 0) {
         nni_mtx_unlock(&s->s_mx);
 #ifdef NNG_ENABLE_STATS

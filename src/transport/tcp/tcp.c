@@ -40,6 +40,7 @@ struct tcptran_pipe {
     size_t          wanttxhead;
     size_t          wantrxhead;
     nni_list        recvq;
+    // nni_aio 的列表
     nni_list        sendq;
     nni_aio *       txaio;
     nni_aio *       rxaio;
@@ -447,7 +448,9 @@ tcptran_pipe_send_start(tcptran_pipe *p)
     nni_iov  iov[3];
     uint64_t len;
 
+    // 该管道关闭了
     if (p->closed) {
+        // 将io操作取消掉
         while ((aio = nni_list_first(&p->sendq)) != NULL) {
             nni_list_remove(&p->sendq, aio);
             nni_aio_finish_error(aio, NNG_ECLOSED);
@@ -455,41 +458,53 @@ tcptran_pipe_send_start(tcptran_pipe *p)
         return;
     }
 
+    // 如果队列中没有，那么直接返回
     if ((aio = nni_list_first(&p->sendq)) == NULL) {
         return;
     }
 
     // This runs to send the message.
+    // 获取消息
     msg = nni_aio_get_msg(aio);
+    // 获取消息body的长度和header的长度
     len = nni_msg_len(msg) + nni_msg_header_len(msg);
 
+    // 按网络字节序存协议c，存储消息长度
     NNI_PUT64(p->txlen, len);
 
+    // 发送aio
     txaio          = p->txaio;
     niov           = 0;
+    // 发送缓冲
     iov[0].iov_buf = p->txlen;
     iov[0].iov_len = sizeof(p->txlen);
     niov++;
+    // 存放长度
     if (nni_msg_header_len(msg) > 0) {
         iov[niov].iov_buf = nni_msg_header(msg);
         iov[niov].iov_len = nni_msg_header_len(msg);
         niov++;
     }
+    // 存放消息长度
     if (nni_msg_len(msg) > 0) {
         iov[niov].iov_buf = nni_msg_body(msg);
         iov[niov].iov_len = nni_msg_len(msg);
         niov++;
     }
     nni_aio_set_iov(txaio, niov, iov);
+    // 发送数据
     nng_stream_send(p->conn, txaio);
 }
 
+// tcp管道的发送数据
 static void
 tcptran_pipe_send(void *arg, nni_aio *aio)
 {
+    // 参数是tcp管道
     tcptran_pipe *p = arg;
     int           rv;
 
+    // 准备aio任务
     if (nni_aio_begin(aio) != 0) {
         return;
     }
@@ -499,7 +514,9 @@ tcptran_pipe_send(void *arg, nni_aio *aio)
         nni_aio_finish_error(aio, rv);
         return;
     }
+    // 加入发送列表列表
     nni_list_append(&p->sendq, aio);
+    // 如果自有这个aio，那么直接开始操作
     if (nni_list_first(&p->sendq) == aio) {
         tcptran_pipe_send_start(p);
     }

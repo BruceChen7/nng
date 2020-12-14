@@ -66,8 +66,10 @@ static void nni_aio_expire_add(nni_aio *);
 void
 nni_aio_init(nni_aio *aio, nni_cb cb, void *arg)
 {
+    // 初始化
 	memset(aio, 0, sizeof(*aio));
 	nni_task_init(&aio->a_task, NULL, cb, arg);
+    // 过期时间
 	aio->a_expire  = NNI_TIME_NEVER;
 	aio->a_timeout = NNG_DURATION_INFINITE;
 }
@@ -100,6 +102,7 @@ nni_aio_fini(nni_aio *aio)
 	// the expiration thread is working.
 
 	nni_mtx_lock(&nni_aio_lk);
+    // 等待目前之情形的任务完成
 	while (nni_aio_expire_aio == aio) {
 		// TODO: It should be possible to remove this check!
 		if (nni_thr_is_self(&nni_aio_expire_thr)) {
@@ -120,6 +123,7 @@ nni_aio_alloc(nni_aio **aio_p, nni_cb cb, void *arg)
 	if ((aio = NNI_ALLOC_STRUCT(aio)) == NULL) {
 		return (NNG_ENOMEM);
 	}
+    // 初始化
 	nni_aio_init(aio, cb, arg);
 	*aio_p = aio;
 	return (0);
@@ -175,9 +179,11 @@ nni_aio_stop(nni_aio *aio)
 		nni_mtx_unlock(&nni_aio_lk);
 
 		if (fn != NULL) {
+            // 调用cancel回调
 			fn(aio, arg, NNG_ECANCELED);
 		}
 
+        // 等待任务列表的完成
 		nni_aio_wait(aio);
 	}
 }
@@ -197,6 +203,7 @@ nni_aio_close(nni_aio *aio)
 		aio->a_stop       = true;
 		nni_mtx_unlock(&nni_aio_lk);
 
+        // 调用cancel对应的回调
 		if (fn != NULL) {
 			fn(aio, arg, NNG_ECLOSED);
 		}
@@ -270,9 +277,11 @@ nni_aio_count(nni_aio *aio)
 void
 nni_aio_wait(nni_aio *aio)
 {
+    // 等待task列表完成
 	nni_task_wait(&aio->a_task);
 }
 
+// 初始化aio->task
 int
 nni_aio_begin(nni_aio *aio)
 {
@@ -289,9 +298,11 @@ nni_aio_begin(nni_aio *aio)
 		aio->a_expire_ok  = false;
 		nni_mtx_unlock(&nni_aio_lk);
 
+        // 分发任务
 		nni_task_dispatch(&aio->a_task);
 		return (NNG_ECANCELED);
 	}
+    // 初始化一次aio操作
 	aio->a_result     = 0;
 	aio->a_count      = 0;
 	aio->a_cancel_fn  = NULL;
@@ -307,6 +318,7 @@ nni_aio_begin(nni_aio *aio)
 int
 nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 {
+    // 该io操作不需要sleep
 	if (!aio->a_sleep) {
 		// Convert the relative timeout to an absolute timeout.
 		switch (aio->a_timeout) {
@@ -325,12 +337,14 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
 
 	nni_mtx_lock(&nni_aio_lk);
 	if (aio->a_stop) {
+        // 终止任务
 		nni_task_abort(&aio->a_task);
 		nni_mtx_unlock(&nni_aio_lk);
 		return (NNG_ECLOSED);
 	}
 
 	NNI_ASSERT(aio->a_cancel_fn == NULL);
+    // 设置cancel的回调
 	aio->a_cancel_fn  = cancel;
 	aio->a_cancel_arg = data;
 
@@ -387,6 +401,7 @@ nni_aio_finish_impl(
 	if (sync) {
 		nni_task_exec(&aio->a_task);
 	} else {
+        // 分发任务
 		nni_task_dispatch(&aio->a_task);
 	}
 }
@@ -464,6 +479,7 @@ nni_aio_expire_add(nni_aio *aio)
 	}
 }
 
+// 设置io线程的逻辑
 static void
 nni_aio_expire_loop(void *unused)
 {
@@ -483,9 +499,10 @@ nni_aio_expire_loop(void *unused)
 		now = nni_clock();
 
 		nni_mtx_lock(&nni_aio_lk);
-
+        // 一个超时任务都没有
 		if ((aio = nni_list_first(list)) == NULL) {
 
+            // 没有设置开始运行
 			if (nni_aio_expire_run == 0) {
 				nni_mtx_unlock(&nni_aio_lk);
 				return;
@@ -496,8 +513,10 @@ nni_aio_expire_loop(void *unused)
 			continue;
 		}
 
+        // 当前时间西澳娱过期时间
 		if (now < aio->a_expire) {
 			// Unexpired; the list is ordered, so we just wait.
+            // 等待超时时间
 			nni_cv_until(&nni_aio_expire_cv, aio->a_expire);
 			nni_mtx_unlock(&nni_aio_lk);
 			continue;
@@ -514,6 +533,7 @@ nni_aio_expire_loop(void *unused)
 			aio->a_cancel_arg = NULL;
 			// Place a temporary hold on the aio.  This prevents it
 			// from being destroyed.
+            // 全局变量，标识正在超时的任务
 			nni_aio_expire_aio = aio;
 
 			// We let the cancel function handle the completion.
@@ -521,10 +541,12 @@ nni_aio_expire_loop(void *unused)
 			// terminate the aio - we've tried, but it has to run
 			// to it's natural conclusion.
 			nni_mtx_unlock(&nni_aio_lk);
+            // 执行回调
 			fn(aio, arg, rv);
 			nni_mtx_lock(&nni_aio_lk);
 
 			nni_aio_expire_aio = NULL;
+            // 告诉其他线程自己执行完毕
 			nni_cv_wake(&nni_aio_expire_cv);
 		}
 		nni_mtx_unlock(&nni_aio_lk);
@@ -652,6 +674,8 @@ nni_aio_sys_fini(void)
 
 	if (nni_aio_expire_run) {
 		nni_mtx_lock(mtx);
+        // 设置结束运行标志
+        // nni_aio_expire_loop中有相关逻辑。
 		nni_aio_expire_run = 0;
 		nni_cv_wake(cv);
 		nni_mtx_unlock(mtx);

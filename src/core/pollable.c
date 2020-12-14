@@ -69,6 +69,7 @@ nni_pollable_raise(nni_pollable *p)
     if (!nni_atomic_swap_bool(&p->p_raised, true)) {
         uint64_t fds;
         if ((fds = nni_atomic_get64(&p->p_fds)) != (uint64_t) -1) {
+            // 用来唤醒该poll fd
             nni_plat_pipe_raise(WFD(fds));
         }
     }

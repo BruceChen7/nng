@@ -22,7 +22,7 @@ typedef struct nni_list_node {
 
 typedef struct nni_list {
 	struct nni_list_node ll_head;
-    // 这个offset是哪个?
+    // 这个offset是nni_list_node在其他数据结构偏移量
 	size_t               ll_offset;
 } nni_list;
 

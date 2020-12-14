@@ -174,6 +174,7 @@ struct nng_aio {
 	bool         a_stop;      // Shutting down (no new operations)
 	bool         a_sleep;     // Sleeping with no action
 	bool         a_expire_ok; // Expire from sleep is ok
+    // aio task
 	nni_task     a_task;
 
 	// Read/write operations.

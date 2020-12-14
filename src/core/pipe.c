@@ -149,15 +149,18 @@ nni_pipe_close(nni_pipe *p)
 	p->p_closed = true;
 	nni_mtx_unlock(&p->p_mtx);
 
+    // 关闭用户层协议子pipe对应的资源
 	if (p->p_proto_data != NULL) {
 		p->p_proto_ops.pipe_close(p->p_proto_data);
 	}
 
 	// Close the underlying transport.
+    // 关闭传输层资源
 	if (p->p_tran_data != NULL) {
 		p->p_tran_ops.p_close(p->p_tran_data);
 	}
 
+    // 回收资源线程，进行回收
 	nni_reap(&p->p_reap, (nni_cb) pipe_destroy, p);
 }
 
@@ -236,15 +239,19 @@ pipe_stats_init(nni_pipe *p)
 }
 #endif // NNG_ENABLE_STATS
 
+// 创建pipe
 static int
 pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 {
 	nni_pipe *          p;
 	int                 rv;
+    // 获取协议数据
 	void *              sdata = nni_sock_proto_data(sock);
+    // 协议pip ops的数据
 	nni_proto_pipe_ops *pops  = nni_sock_proto_pipe_ops(sock);
 	size_t              sz;
 
+    // 对其内存空间
 	sz = NNI_ALIGN_UP(sizeof(*p)) + pops->pipe_size;
 
 	if ((p = nni_zalloc(sz)) == NULL) {
@@ -253,9 +260,10 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 		return (NNG_ENOMEM);
 	}
 
+    // 初始化pipe
 	p->p_size       = sz;
-	p->p_proto_data = p + 1;
-	p->p_tran_ops   = *tran->tran_pipe;
+	p->p_proto_data = p + 1; // 这里的 p + 1，协议层的pip
+	p->p_tran_ops   = *tran->tran_pipe;  // 传输层通道
 	p->p_tran_data  = tdata;
 	p->p_proto_ops  = *pops;
 	p->p_sock       = sock;
@@ -280,7 +288,9 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 	pipe_stats_init(p);
 #endif
 
+    // 调用传输层的初始化
 	if ((rv != 0) || ((rv = p->p_tran_ops.p_init(tdata, p)) != 0) ||
+        // 调用选项中协议
 	    ((rv = pops->pipe_init(p->p_proto_data, p, sdata)) != 0)) {
 		nni_pipe_close(p);
 		nni_pipe_rele(p);
@@ -319,12 +329,15 @@ int
 nni_pipe_create_listener(nni_pipe **pp, nni_listener *l, void *tdata)
 {
 	int            rv;
+    // 传输层
 	nni_tran *     tran = l->l_tran;
 	nni_pipe *     p;
 
+    // 关联listen scoket 和pipe
 	if ((rv = pipe_create(&p, l->l_sock, tran, tdata)) != 0) {
 		return (rv);
 	}
+    // 关联的listener
 	p->p_listener = l;
 #if NNG_ENABLE_STATS
 	static const nni_stat_info listener_info = {

@@ -26,10 +26,15 @@ static void rep0_pipe_recv_cb(void *);
 static void rep0_pipe_fini(void *);
 
 struct rep0_ctx {
+    // 协议socket
     rep0_sock *   sock;
+    // 对应哪个pipe id
     uint32_t      pipe_id;
+    // send pip
     rep0_pipe *   spipe; // send pipe
+    // send aio操作
     nni_aio *     saio;  // send aio
+    /* 接收线程 */
     nni_aio *     raio;  // recv aio
     nni_list_node sqnode;
     nni_list_node rqnode;
@@ -39,8 +44,11 @@ struct rep0_ctx {
 
 // rep0_sock is our per-socket protocol private structure.
 struct rep0_sock {
+    // 锁
     nni_mtx        lk;
+    // 最大生存时间
     nni_atomic_int ttl;
+    // 所有的pipe列表，pipe_id对应的pips
     nni_id_map     pipes;
     nni_list       recvpipes; // list of pipes with data to receive
     nni_list       recvq;
@@ -51,12 +59,14 @@ struct rep0_sock {
 
 // rep0_pipe is our per-pipe protocol private structure.
 struct rep0_pipe {
+    // 继承父类的pipe
     nni_pipe *    pipe;
     rep0_sock *   rep;
     uint32_t      id;
-    nni_aio       aio_send;
-    nni_aio       aio_recv;
+    nni_aio       aio_send; // 发送线程
+    nni_aio       aio_recv;  // 接收线程
     nni_list_node rnode; // receivable list linkage
+    // 发送数据包
     nni_list      sendq; // contexts waiting to send
     bool          busy;
     bool          closed;
@@ -99,10 +109,12 @@ rep0_ctx_init(void *carg, void *sarg)
     rep0_sock *s   = sarg;
     rep0_ctx * ctx = carg;
 
+    // 初始化resposne 的pip
     NNI_LIST_NODE_INIT(&ctx->sqnode);
     NNI_LIST_NODE_INIT(&ctx->rqnode);
     ctx->btrace_len = 0;
     ctx->sock       = s;
+    // 默认pipe_id位0
     ctx->pipe_id    = 0;
 
     return (0);
@@ -217,6 +229,7 @@ rep0_sock_fini(void *arg)
     nni_mtx_fini(&s->lk);
 }
 
+// 用来初始化req-rsp协议实例
 static int
 rep0_sock_init(void *arg, nni_sock *sock)
 {
@@ -224,11 +237,14 @@ rep0_sock_init(void *arg, nni_sock *sock)
 
     NNI_ARG_UNUSED(sock);
 
+    // 初始化锁
     nni_mtx_init(&s->lk);
+    // 初始化pip列表
     nni_id_map_init(&s->pipes, 0, 0, false);
     NNI_LIST_INIT(&s->recvq, rep0_ctx, rqnode);
     NNI_LIST_INIT(&s->recvpipes, rep0_pipe, rnode);
     nni_atomic_init(&s->ttl);
+    // 设置ttl位8
     nni_atomic_set(&s->ttl, 8);
 
     (void) rep0_ctx_init(&s->ctx, s);
@@ -250,6 +266,7 @@ rep0_sock_open(void *arg)
 static void
 rep0_sock_close(void *arg)
 {
+    // 协议实体
     rep0_sock *s = arg;
 
     rep0_ctx_close(&s->ctx);
@@ -260,6 +277,7 @@ rep0_pipe_stop(void *arg)
 {
     rep0_pipe *p = arg;
 
+    // 停止发送和接收线程
     nni_aio_stop(&p->aio_send);
     nni_aio_stop(&p->aio_recv);
 }
@@ -298,6 +316,7 @@ rep0_pipe_init(void *arg, nni_pipe *pipe, void *s)
 static int
 rep0_pipe_start(void *arg)
 {
+    // 传入的是pipe
     rep0_pipe *p = arg;
     rep0_sock *s = p->rep;
     int        rv;
@@ -319,6 +338,7 @@ rep0_pipe_start(void *arg)
     return (0);
 }
 
+// rep0协议回收pip资源
 static void
 rep0_pipe_close(void *arg)
 {
@@ -326,26 +346,35 @@ rep0_pipe_close(void *arg)
     rep0_sock *s = p->rep;
     rep0_ctx * ctx;
 
+    // 关闭IO线程
     nni_aio_close(&p->aio_send);
     nni_aio_close(&p->aio_recv);
 
     nni_mtx_lock(&s->lk);
     p->closed = true;
+    // 如果在recvpips列表中
     if (nni_list_active(&s->recvpipes, p)) {
         // We are no longer "receivable".
+        // 从链表中取消该节点的连接
         nni_list_remove(&s->recvpipes, p);
     }
+    // 如果该pipe中发送队列中还有数据没有发送出去
     while ((ctx = nni_list_first(&p->sendq)) != NULL) {
         nni_aio *aio;
         nni_msg *msg;
         // Pipe was closed.  To avoid pushing an error back to the
         // entire socket, we pretend we completed this successfully.
+        // 直接从发送队列中移除移除数据
         nni_list_remove(&p->sendq, ctx);
         aio       = ctx->saio;
         ctx->saio = NULL;
+        // 获取msg
         msg       = nni_aio_get_msg(aio);
+        //清空message
         nni_aio_set_msg(aio, NULL);
+        // 进行发送
         nni_aio_finish(aio, 0, nni_msg_len(msg));
+        // 回收message资源
         nni_msg_free(msg);
     }
     if (p->id == s->ctx.pipe_id) {
@@ -475,6 +504,7 @@ static void
 rep0_pipe_recv_cb(void *arg)
 {
     rep0_pipe *p = arg;
+    // 协议实例
     rep0_sock *s = p->rep;
     rep0_ctx * ctx;
     nni_msg *  msg;
@@ -484,6 +514,7 @@ rep0_pipe_recv_cb(void *arg)
     int        hops;
     int        ttl;
 
+    // IO读取是否失败
     if (nni_aio_result(&p->aio_recv) != 0) {
         nni_pipe_close(p->pipe);
         return;
@@ -649,6 +680,7 @@ static nni_proto_pipe_ops rep0_pipe_ops = {
     .pipe_stop  = rep0_pipe_stop,
 };
 
+// 协议上下文的操作
 static nni_proto_ctx_ops rep0_ctx_ops = {
     .ctx_size = sizeof(rep0_ctx),
     .ctx_init = rep0_ctx_init,
@@ -681,6 +713,7 @@ static nni_proto_sock_ops rep0_sock_ops = {
     .sock_size    = sizeof(rep0_sock),
     .sock_init    = rep0_sock_init,
     .sock_fini    = rep0_sock_fini,
+    // 什么都不干
     .sock_open    = rep0_sock_open,
     .sock_close   = rep0_sock_close,
     .sock_options = rep0_sock_options,
@@ -688,12 +721,13 @@ static nni_proto_sock_ops rep0_sock_ops = {
     .sock_recv    = rep0_sock_recv,
 };
 
+// req-rsp协议的实现版本
 static nni_proto rep0_proto = {
     // 协议版本信息
     .proto_version  = NNI_PROTOCOL_VERSION,
     .proto_self     = { NNG_REP0_SELF, NNG_REP0_SELF_NAME },
     .proto_peer     = { NNG_REP0_PEER, NNG_REP0_PEER_NAME },
-    // 协议flags
+    // 协议flags, 支持发送和receive
     .proto_flags    = NNI_PROTO_FLAG_SNDRCV | NNI_PROTO_FLAG_NOMSGQ,
     .proto_sock_ops = &rep0_sock_ops,
     .proto_pipe_ops = &rep0_pipe_ops,

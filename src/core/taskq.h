@@ -65,6 +65,7 @@ struct nni_task {
 	nni_cb        task_cb;
 	nni_taskq *   task_tq;
 	unsigned      task_busy;
+    // 是否准备好了
 	bool          task_prep;
 	nni_mtx       task_mtx;
 	nni_cv        task_cv;

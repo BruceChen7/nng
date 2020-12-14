@@ -16,113 +16,117 @@
 // are subject to change at any time.
 
 struct nni_dialer {
-	nni_tran_dialer_ops d_ops;  // transport ops
-	nni_tran *          d_tran; // transport pointer
-	void *              d_data; // transport private
-	uint32_t            d_id;   // endpoint id
-	nni_list_node       d_node; // per socket list
-	nni_sock *          d_sock;
-	nni_url *           d_url;
-	nni_pipe *          d_pipe; // active pipe (for re-dialer)
-	int                 d_ref;
-	bool                d_closed; // full shutdown
-	bool                d_closing;
-	nni_atomic_flag     d_started;
-	nni_mtx             d_mtx;
-	nni_list            d_pipes;
-	nni_aio *           d_user_aio;
-	nni_aio             d_con_aio;
-	nni_aio             d_tmo_aio;  // backoff timer
-	nni_duration        d_maxrtime; // maximum time for reconnect
-	nni_duration        d_currtime; // current time for reconnect
-	nni_duration        d_inirtime; // initial time for reconnect
-	nni_time            d_conntime; // time of last good connect
-	nni_reap_item       d_reap;
+    nni_tran_dialer_ops d_ops;  // transport ops
+    nni_tran *          d_tran; // transport pointer
+    void *              d_data; // transport private
+    uint32_t            d_id;   // endpoint id
+    nni_list_node       d_node; // per socket list
+    nni_sock *          d_sock;
+    nni_url *           d_url;
+    nni_pipe *          d_pipe; // active pipe (for re-dialer)
+    int                 d_ref;
+    bool                d_closed; // full shutdown
+    bool                d_closing;
+    nni_atomic_flag     d_started;
+    nni_mtx             d_mtx;
+    nni_list            d_pipes;
+    nni_aio *           d_user_aio;
+    nni_aio             d_con_aio;
+    nni_aio             d_tmo_aio;  // backoff timer
+    nni_duration        d_maxrtime; // maximum time for reconnect
+    nni_duration        d_currtime; // current time for reconnect
+    nni_duration        d_inirtime; // initial time for reconnect
+    nni_time            d_conntime; // time of last good connect
+    nni_reap_item       d_reap;
 
 #ifdef NNG_ENABLE_STATS
-	nni_stat_item st_root;
-	nni_stat_item st_id;
-	nni_stat_item st_sock;
-	nni_stat_item st_url;
-	nni_stat_item st_pipes;
-	nni_stat_item st_connect;
-	nni_stat_item st_refused;
-	nni_stat_item st_disconnect; // aborted remotely
-	nni_stat_item st_canceled;
-	nni_stat_item st_other;
-	nni_stat_item st_timeout;
-	nni_stat_item st_proto; // protocol error
-	nni_stat_item st_auth;
-	nni_stat_item st_oom;
-	nni_stat_item st_reject;
+    nni_stat_item st_root;
+    nni_stat_item st_id;
+    nni_stat_item st_sock;
+    nni_stat_item st_url;
+    nni_stat_item st_pipes;
+    nni_stat_item st_connect;
+    nni_stat_item st_refused;
+    nni_stat_item st_disconnect; // aborted remotely
+    nni_stat_item st_canceled;
+    nni_stat_item st_other;
+    nni_stat_item st_timeout;
+    nni_stat_item st_proto; // protocol error
+    nni_stat_item st_auth;
+    nni_stat_item st_oom;
+    nni_stat_item st_reject;
 #endif
 };
 
 struct nni_listener {
     // 传输层选项
-	nni_tran_listener_ops l_ops;  // transport ops
-	nni_tran *            l_tran; // transport pointer
-	void *                l_data; // transport private
-	uint32_t              l_id;   // endpoint id
-	nni_list_node         l_node; // per socket list
-	nni_sock *            l_sock;
-	nni_url *             l_url;
-	int                   l_ref;
-	bool                  l_closed;  // full shutdown
-	bool                  l_closing; // close started (shutdown)
-	nni_atomic_flag       l_started;
-	nni_list              l_pipes;
-	nni_aio               l_acc_aio;
-	nni_aio               l_tmo_aio;
-	nni_reap_item         l_reap;
+    nni_tran_listener_ops l_ops;  // transport ops
+    nni_tran *            l_tran; // transport pointer
+    void *                l_data; // transport private
+    uint32_t              l_id;   // endpoint id
+    nni_list_node         l_node; // per socket list
+    // listen socket
+    nni_sock *            l_sock;
+    nni_url *             l_url;
+    int                   l_ref;
+    bool                  l_closed;  // full shutdown
+    bool                  l_closing; // close started (shutdown)
+    nni_atomic_flag       l_started;
+    nni_list              l_pipes;
+    nni_aio               l_acc_aio;
+    nni_aio               l_tmo_aio;
+    nni_reap_item         l_reap;
 
 #ifdef NNG_ENABLE_STATS
-	nni_stat_item st_root;
-	nni_stat_item st_id;
-	nni_stat_item st_sock;
-	nni_stat_item st_url;
-	nni_stat_item st_pipes;
-	nni_stat_item st_accept;
-	nni_stat_item st_disconnect; // aborted remotely
-	nni_stat_item st_canceled;
-	nni_stat_item st_other;
-	nni_stat_item st_timeout;
-	nni_stat_item st_proto; // protocol error
-	nni_stat_item st_auth;
-	nni_stat_item st_oom;
-	nni_stat_item st_reject;
+    nni_stat_item st_root;
+    nni_stat_item st_id;
+    nni_stat_item st_sock;
+    nni_stat_item st_url;
+    nni_stat_item st_pipes;
+    nni_stat_item st_accept;
+    nni_stat_item st_disconnect; // aborted remotely
+    nni_stat_item st_canceled;
+    nni_stat_item st_other;
+    nni_stat_item st_timeout;
+    nni_stat_item st_proto; // protocol error
+    nni_stat_item st_auth;
+    nni_stat_item st_oom;
+    nni_stat_item st_reject;
 #endif
 };
 
 struct nni_pipe {
-	uint32_t           p_id;
-	nni_tran_pipe_ops  p_tran_ops;
-	nni_proto_pipe_ops p_proto_ops;
-	size_t             p_size;
-	void *             p_tran_data;
-	void *             p_proto_data;
-	nni_list_node      p_sock_node;
-	nni_list_node      p_ep_node;
-	nni_sock *         p_sock;
-	nni_dialer *       p_dialer;
-	nni_listener *     p_listener;
-	bool               p_closed;
-	nni_atomic_flag    p_stop;
-	bool               p_cbs;
-	int                p_ref;
-	nni_mtx            p_mtx;
-	nni_cv             p_cv;
-	nni_reap_item      p_reap;
+    uint32_t           p_id;
+    // trans op实现
+    nni_tran_pipe_ops  p_tran_ops;
+    nni_proto_pipe_ops p_proto_ops;
+    size_t             p_size;
+    // 传入的c
+    void *             p_tran_data;
+    // 传入的是各个协议的pipe实现
+    void *             p _proto_data;
+    nni_list_node      p_sock_node;
+    nni_list_node      p_ep_node;
+    nni_sock *         p_sock;
+    nni_dialer *       p_dialer;
+    nni_listener *     p_listener;
+    bool               p_closed;
+    nni_atomic_flag    p_stop;
+    bool               p_cbs;
+    int                p_ref;
+    nni_mtx            p_mtx;
+    nni_cv             p_cv;
+    nni_reap_item      p_reap;
 
 #ifdef NNG_ENABLE_STATS
-	nni_stat_item st_root;
-	nni_stat_item st_id;
-	nni_stat_item st_ep_id;
-	nni_stat_item st_sock_id;
-	nni_stat_item st_rx_msgs;
-	nni_stat_item st_tx_msgs;
-	nni_stat_item st_rx_bytes;
-	nni_stat_item st_tx_bytes;
+    nni_stat_item st_root;
+    nni_stat_item st_id;
+    nni_stat_item st_ep_id;
+    nni_stat_item st_sock_id;
+    nni_stat_item st_rx_msgs;
+    nni_stat_item st_tx_msgs;
+    nni_stat_item st_rx_bytes;
+    nni_stat_item st_tx_bytes;
 
 #endif
 };

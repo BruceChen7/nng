@@ -52,13 +52,16 @@ struct req0_sock {
     bool           closed;
     nni_atomic_int ttl;
     req0_ctx       master; // base socket master
+    // 可以使用的pip列表
     nni_list       ready_pipes;
     nni_list       busy_pipes;
     nni_list       stop_pipes;
     nni_list       contexts;
     nni_list       send_queue; // contexts waiting to send.
     nni_id_map     requests;   // contexts by request ID
+    // readable pipe fd
     nni_pollable   readable;
+    // writable pipe fd
     nni_pollable   writable;
     nni_mtx        mtx;
 };
@@ -180,6 +183,7 @@ req0_pipe_init(void *arg, nni_pipe *pipe, void *s)
     NNI_LIST_NODE_INIT(&p->node);
     NNI_LIST_INIT(&p->contexts, req0_ctx, pipe_node);
     p->pipe = pipe;
+    // 设置实例
     p->req  = s;
     return (0);
 }
@@ -190,12 +194,15 @@ req0_pipe_start(void *arg)
     req0_pipe *p = arg;
     req0_sock *s = p->req;
 
+    // 查看对方的pip是否存在
     if (nni_pipe_peer(p->pipe) != NNG_REQ0_PEER) {
         return (NNG_EPROTO);
     }
 
     nni_mtx_lock(&s->mtx);
+    // 将p作为可以使用的pip入列表
     nni_list_append(&s->ready_pipes, p);
+    // 唤醒pip
     nni_pollable_raise(&s->writable);
     req0_run_send_queue(s, NULL);
     nni_mtx_unlock(&s->mtx);
@@ -387,6 +394,7 @@ req0_ctx_timeout(void *arg)
     nni_mtx_unlock(&s->mtx);
 }
 
+//  协议上下文初始化
 static int
 req0_ctx_init(void *arg, void *sock)
 {
@@ -398,6 +406,7 @@ req0_ctx_init(void *arg, void *sock)
 
     nni_mtx_lock(&s->mtx);
     ctx->sock     = s;
+    // 默认recv_aio为空
     ctx->recv_aio = NULL;
     ctx->retry    = s->retry;
     nni_list_append(&s->contexts, ctx);

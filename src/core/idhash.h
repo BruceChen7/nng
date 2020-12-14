@@ -29,15 +29,15 @@ typedef struct nni_id_entry     nni_id_entry;
 // NB: These details are entirely private to the hash implementation.
 // They are provided here to facilitate inlining in structures.
 struct nni_id_map {
-	size_t        id_cap;
-	size_t        id_count;
-	size_t        id_load;
-	size_t        id_min_load; // considers placeholders
-	size_t        id_max_load;
-	uint32_t      id_min_val;
-	uint32_t      id_max_val;
-	uint32_t      id_dyn_val; // 动态生成的一个id值
-	nni_id_entry *id_entries;
+    size_t        id_cap;
+    size_t        id_count;
+    size_t        id_load;
+    size_t        id_min_load; // considers placeholders
+    size_t        id_max_load;
+    uint32_t      id_min_val;
+    uint32_t      id_max_val;
+    uint32_t      id_dyn_val; // 动态生成的一个id值
+    nni_id_entry *id_entries;
 };
 
 extern void nni_id_map_init(nni_id_map *, uint32_t, uint32_t, bool);

@@ -59,6 +59,7 @@ nni_taskq_thread(void *self)
 
             nni_mtx_lock(&task->task_mtx);
             task->task_busy--;
+            // 没有处理的任务了，等待新的任务
             if (task->task_busy == 0) {
                 nni_cv_wake(&task->task_cv);
             }
@@ -69,7 +70,7 @@ nni_taskq_thread(void *self)
             continue;
         }
 
-        // 任务系统没有开启
+        // 任务系统没有开始运行，或者被强制停止
         if (!tq->tq_run) {
             break;
         }
@@ -117,7 +118,7 @@ nni_taskq_init(nni_taskq **tqp, int nthr)
             return (rv);
         }
     }
-    // 设置开始启动
+    // 设置各个线程开始启动
     tq->tq_run = true;
     for (int i = 0; i < tq->tq_nthreads; i++) {
         nni_thr_run(&tq->tq_threads[i].tqt_thread);
@@ -186,6 +187,7 @@ nni_task_dispatch(nni_task *task)
     if (task->task_prep) {
         task->task_prep = false;
     } else {
+        // 正在处理的任务数加1
         task->task_busy++;
     }
     nni_mtx_unlock(&task->task_mtx);
@@ -255,6 +257,7 @@ nni_task_fini(nni_task *task)
     nni_mtx_fini(&task->task_mtx);
 }
 
+// 初始化多个线程
 int
 nni_taskq_sys_init(void)
 {

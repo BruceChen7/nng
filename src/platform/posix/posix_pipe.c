@@ -36,6 +36,7 @@
 #define NNI_EVENTFD_FLAGS 0
 #endif
 
+// 使用eventfd来唤醒
 int
 nni_plat_pipe_open(int *wfd, int *rfd)
 {
@@ -74,7 +75,7 @@ nni_plat_pipe_close(int wfd, int rfd)
 	(void) close(wfd);
 }
 
-#else // NNG_USE_EVENTFD
+#else // NNG_USE_EVENTFD结束
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -105,6 +106,7 @@ nni_plat_pipe_raise(int wfd)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
+    // 直接向fd 写入一个值，用来唤醒
 	(void) write(wfd, &c, 1);
 #pragma GCC diagnostic pop
 }
