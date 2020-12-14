@@ -24,94 +24,94 @@ extern void nni_tls_sys_fini(void);
 static int
 nni_init_helper(void)
 {
-	int rv;
+    int rv;
 
     // 初始化锁属性
-	nni_mtx_init(&nni_init_mtx);
+    nni_mtx_init(&nni_init_mtx);
     // 初始化列表
-	NNI_LIST_INIT(&nni_init_list, nni_initializer, i_node);
-	nni_inited = true;
+    NNI_LIST_INIT(&nni_init_list, nni_initializer, i_node);
+    nni_inited = true;
 
-	if (((rv = nni_stat_sys_init()) != 0) ||
-	    ((rv = nni_taskq_sys_init()) != 0) ||  // 初始化队任务列线程
-	    ((rv = nni_reap_sys_init()) != 0) || // 初始化回收线程
-	    ((rv = nni_timer_sys_init()) != 0) ||  // 初始化timer
-	    ((rv = nni_aio_sys_init()) != 0) ||
-	    ((rv = nni_sock_sys_init()) != 0) ||
-	    ((rv = nni_listener_sys_init()) != 0) ||
-	    ((rv = nni_dialer_sys_init()) != 0) ||
-	    ((rv = nni_pipe_sys_init()) != 0) ||
-	    ((rv = nni_tls_sys_init()) != 0) ||
-	    ((rv = nni_proto_sys_init()) != 0) ||
-	    ((rv = nni_tran_sys_init()) != 0)) {
-		nni_fini();
-	}
+    if (((rv = nni_stat_sys_init()) != 0) ||
+        ((rv = nni_taskq_sys_init()) != 0) ||  // 初始化队任务列线程
+        ((rv = nni_reap_sys_init()) != 0) || // 初始化回收线程
+        ((rv = nni_timer_sys_init()) != 0) ||  // 初始化timer
+        ((rv = nni_aio_sys_init()) != 0) ||
+        ((rv = nni_sock_sys_init()) != 0) ||
+        ((rv = nni_listener_sys_init()) != 0) ||
+        ((rv = nni_dialer_sys_init()) != 0) ||
+        ((rv = nni_pipe_sys_init()) != 0) ||
+        ((rv = nni_tls_sys_init()) != 0) ||
+        ((rv = nni_proto_sys_init()) != 0) ||
+        ((rv = nni_tran_sys_init()) != 0)) {
+        nni_fini();
+    }
 
-	return (rv);
+    return (rv);
 }
 
 int
 nni_init(void)
 {
     // nng初始化
-	return (nni_plat_init(nni_init_helper));
+    return (nni_plat_init(nni_init_helper));
 }
 
 void
 nni_fini(void)
 {
-	if (!nni_inited) {
-		return;
-	}
-	if (!nni_list_empty(&nni_init_list)) {
-		nni_initializer *init;
+    if (!nni_inited) {
+        return;
+    }
+    if (!nni_list_empty(&nni_init_list)) {
+        nni_initializer *init;
 
-		nni_mtx_lock(&nni_init_mtx);
-		while ((init = nni_list_first(&nni_init_list)) != NULL) {
-			if (init->i_fini != NULL) {
-				init->i_fini();
-			}
-			init->i_once = 0;
-			nni_list_remove(&nni_init_list, init);
-		}
-		nni_mtx_unlock(&nni_init_mtx);
-	}
-	nni_tran_sys_fini();
-	nni_proto_sys_fini();
-	nni_tls_sys_fini();
-	nni_pipe_sys_fini();
-	nni_dialer_sys_fini();
-	nni_listener_sys_fini();
-	nni_sock_sys_fini();
-	nni_reap_drain();
-	nni_aio_sys_fini();
-	nni_timer_sys_fini();
+        nni_mtx_lock(&nni_init_mtx);
+        while ((init = nni_list_first(&nni_init_list)) != NULL) {
+            if (init->i_fini != NULL) {
+                init->i_fini();
+            }
+            init->i_once = 0;
+            nni_list_remove(&nni_init_list, init);
+        }
+        nni_mtx_unlock(&nni_init_mtx);
+    }
+    nni_tran_sys_fini();
+    nni_proto_sys_fini();
+    nni_tls_sys_fini();
+    nni_pipe_sys_fini();
+    nni_dialer_sys_fini();
+    nni_listener_sys_fini();
+    nni_sock_sys_fini();
+    nni_reap_drain();
+    nni_aio_sys_fini();
+    nni_timer_sys_fini();
     // 释放资源
-	nni_taskq_sys_fini();
-	nni_reap_sys_fini(); // must be before timer and aio (expire)
-	nni_stat_sys_fini();
+    nni_taskq_sys_fini();
+    nni_reap_sys_fini(); // must be before timer and aio (expire)
+    nni_stat_sys_fini();
 
-	nni_mtx_fini(&nni_init_mtx);
-	nni_plat_fini();
-	nni_inited = false;
+    nni_mtx_fini(&nni_init_mtx);
+    nni_plat_fini();
+    nni_inited = false;
 }
 
 int
 nni_initialize(nni_initializer *init)
 {
-	int rv;
-	if (init->i_once) {
-		return (0);
-	}
-	nni_mtx_lock(&nni_init_mtx);
-	if (init->i_once) {
-		nni_mtx_unlock(&nni_init_mtx);
-		return (0);
-	}
-	if ((rv = init->i_init()) == 0) {
-		init->i_once = 1;
-		nni_list_append(&nni_init_list, init);
-	}
-	nni_mtx_unlock(&nni_init_mtx);
-	return (rv);
+    int rv;
+    if (init->i_once) {
+        return (0);
+    }
+    nni_mtx_lock(&nni_init_mtx);
+    if (init->i_once) {
+        nni_mtx_unlock(&nni_init_mtx);
+        return (0);
+    }
+    if ((rv = init->i_init()) == 0) {
+        init->i_once = 1;
+        nni_list_append(&nni_init_list, init);
+    }
+    nni_mtx_unlock(&nni_init_mtx);
+    return (rv);
 }

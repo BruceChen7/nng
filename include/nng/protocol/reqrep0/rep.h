@@ -19,6 +19,7 @@ NNG_DECL int nng_rep0_open(nng_socket *);
 NNG_DECL int nng_rep0_open_raw(nng_socket *);
 
 #ifndef nng_rep_open
+// 导出的接口
 #define nng_rep_open nng_rep0_open
 #endif
 
