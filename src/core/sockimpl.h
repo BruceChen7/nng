@@ -59,6 +59,7 @@ struct nni_dialer {
 };
 
 struct nni_listener {
+    // 传输层选项
 	nni_tran_listener_ops l_ops;  // transport ops
 	nni_tran *            l_tran; // transport pointer
 	void *                l_data; // transport private

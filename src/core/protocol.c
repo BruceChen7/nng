@@ -65,6 +65,7 @@ nni_proto_open(nng_socket *sockidp, const nni_proto *proto)
     // 打开socket
     if ((rv = nni_sock_open(&sock, proto)) == 0) {
         nng_socket s;
+        // 设置id
         s.id     = nni_sock_id(sock); // Keep socket held open.
         // 设置给用户端
         *sockidp = s;

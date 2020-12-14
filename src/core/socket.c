@@ -51,7 +51,9 @@ typedef struct nni_sock_pipe_cb {
 struct nni_socket {
     // 节点
     nni_list_node s_node;
+    // 锁
     nni_mtx       s_mx;
+    // 条件变量
     nni_cv        s_cv;
     nni_cv        s_close_cv;
 
@@ -191,12 +193,14 @@ sock_get_recvtimeo(void *s, void *buf, size_t *szp, nni_type t)
 static int
 sock_set_sendtimeo(void *s, const void *buf, size_t sz, nni_type t)
 {
+    // 设置发送超时时间
     return (nni_copyin_ms(&SOCK(s)->s_sndtimeo, buf, sz, t));
 }
 
 static int
 sock_get_sendtimeo(void *s, void *buf, size_t *szp, nni_type t)
 {
+    // 设置超时时间
     return (nni_copyout_ms(SOCK(s)->s_sndtimeo, buf, szp, t));
 }
 
@@ -371,15 +375,20 @@ nni_sock_find(nni_sock **sockp, uint32_t id)
     int       rv;
     nni_sock *s;
 
+    // 如果之前木有初始化直接返回失败
     if ((rv = nni_init()) != 0) {
         return (rv);
     }
     nni_mtx_lock(&sock_lk);
+    // 找到了
     if ((s = nni_id_get(&sock_ids, id)) != NULL) {
         if (s->s_closed) {
+            // closed
             rv = NNG_ECLOSED;
         } else {
+            // 引用 + 1;
             s->s_ref++;
+            // 指向同一个指针
             *sockp = s;
         }
     } else {
@@ -594,9 +603,11 @@ nni_sock_create(nni_sock **sp, const nni_proto *proto)
     sock_stats_init(s);
 #endif
 
+    // 初始化读写消息队列
     if (((rv = nni_msgq_init(&s->s_uwq, 0)) != 0) ||
         ((rv = nni_msgq_init(&s->s_urq, 1)) != 0) ||
         ((rv = s->s_sock_ops.sock_init(s->s_data, s)) != 0) ||
+        // 设置套接字选项
         ((rv = nni_sock_setopt(s, NNG_OPT_SENDTIMEO, &s->s_sndtimeo,
               sizeof(nni_duration), NNI_TYPE_DURATION)) != 0) ||
         ((rv = nni_sock_setopt(s, NNG_OPT_RECVTIMEO, &s->s_rcvtimeo,
@@ -614,6 +625,7 @@ nni_sock_create(nni_sock **sp, const nni_proto *proto)
     // These we *attempt* to call so that we are likely to have initial
     // values loaded.  They should not fail, but if they do we don't
     // worry about it.
+    // 设置no_delay
     on = true;
     (void) nni_sock_setopt(
         s, NNG_OPT_TCP_NODELAY, &on, sizeof(on), NNI_TYPE_BOOL);
@@ -631,6 +643,7 @@ nni_sock_sys_init(void)
     NNI_LIST_INIT(&sock_list, nni_sock, s_node);
     nni_mtx_init(&sock_lk);
 
+    // 初始化全局sock_ids
     nni_id_map_init(&sock_ids, 1, 0x7fffffff, false);
     nni_id_map_init(&ctx_ids, 1, 0x7fffffff, false);
     inited = true;
@@ -660,6 +673,7 @@ nni_sock_open(nni_sock **sockp, const nni_proto *proto)
 
     // 用来初始化各种线程池，包含任务线程池，回收线程池
     if (((rv = nni_init()) != 0) ||
+        // 创建套接字
         ((rv = nni_sock_create(&s, proto)) != 0)) {
         return (rv);
     }
@@ -668,7 +682,9 @@ nni_sock_open(nni_sock **sockp, const nni_proto *proto)
     if (nni_id_alloc(&sock_ids, &s->s_id, s) != 0) {
         sock_destroy(s);
     } else {
+        // 放到全局列表中
         nni_list_append(&sock_list, s);
+        // 调用socket open来打开
         s->s_sock_ops.sock_open(s->s_data);
         *sockp = s;
     }

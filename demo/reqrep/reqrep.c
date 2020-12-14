@@ -77,6 +77,7 @@ server(const char *url)
 	if ((rv = nng_rep0_open(&sock)) != 0) {
 		fatal("nng_rep0_open", rv);
 	}
+    // listen socket
 	if ((rv = nng_listen(sock, url, NULL, 0)) != 0) {
 		fatal("nng_listen", rv);
 	}

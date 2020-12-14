@@ -497,9 +497,12 @@ nng_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
 	nni_sock *    s;
 	nni_listener *l;
 
+    // 在全局列表中找到对应的socket
+    // 没有找到直接返回
 	if ((rv = nni_sock_find(&s, sid.id)) != 0) {
 		return (rv);
 	}
+    // listener create
 	if ((rv = nni_listener_create(&l, s, addr)) != 0) {
 		nni_sock_rele(s);
 		return (rv);

@@ -223,12 +223,14 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 	if ((rv = nni_url_parse(&url, url_str)) != 0) {
 		return (rv);
 	}
+    // 找到对应的传输层
 	if (((tran = nni_tran_find(url)) == NULL) ||
 	    (tran->tran_listener == NULL)) {
 		nni_url_free(url);
 		return (NNG_ENOTSUP);
 	}
 
+    // 分配内存
 	if ((l = NNI_ALLOC_STRUCT(l)) == NULL) {
 		nni_url_free(url);
 		return (NNG_ENOMEM);
@@ -237,6 +239,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 	l->l_closed  = false;
 	l->l_closing = false;
 	l->l_data    = NULL;
+    // 引用 + 1
 	l->l_ref     = 1;
 	l->l_sock    = s;
 	l->l_tran    = tran;
@@ -248,6 +251,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 	l->l_ops = *tran->tran_listener;
 
 	NNI_LIST_NODE_INIT(&l->l_node);
+    // 初始化链表
 	NNI_LIST_INIT(&l->l_pipes, nni_pipe, p_ep_node);
 
 	nni_aio_init(&l->l_acc_aio, listener_accept_cb, l);
@@ -418,10 +422,12 @@ nni_listener_start(nni_listener *l, int flags)
 	int rv;
 	NNI_ARG_UNUSED(flags);
 
+    // 如果已经start，那么直接返回失败
 	if (nni_atomic_flag_test_and_set(&l->l_started)) {
 		return (NNG_ESTATE);
 	}
 
+    // 绑定对应的端口和地址
 	if ((rv = l->l_ops.l_bind(l->l_data)) != 0) {
 		nni_listener_bump_error(l, rv);
 		nni_atomic_flag_reset(&l->l_started);

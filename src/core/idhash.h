@@ -36,7 +36,7 @@ struct nni_id_map {
 	size_t        id_max_load;
 	uint32_t      id_min_val;
 	uint32_t      id_max_val;
-	uint32_t      id_dyn_val;
+	uint32_t      id_dyn_val; // 动态生成的一个id值
 	nni_id_entry *id_entries;
 };
 

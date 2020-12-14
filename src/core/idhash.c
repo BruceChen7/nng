@@ -77,11 +77,13 @@ id_find(nni_id_map *m, uint32_t id)
 		// The value of ihe_key is only valid if ihe_val is not NULL.
 		if ((m->id_entries[index].key == id) &&
 		    (m->id_entries[index].val != NULL)) {
+            // 直接返回该socket
 			return (index);
 		}
 		if (m->id_entries[index].skips == 0) {
 			return ((size_t) -1);
 		}
+        // 下一个index
 		index = ID_NEXT(m, index);
 
 		if (index == start) {

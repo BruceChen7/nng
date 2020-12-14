@@ -25,124 +25,124 @@
 
 // nni_proto_pipe contains protocol-specific per-pipe operations.
 struct nni_proto_pipe_ops {
-	// pipe_size is the size of a protocol pipe object.  The common
-	// code allocates this memory for the protocol private state.
-	size_t pipe_size;
+    // pipe_size is the size of a protocol pipe object.  The common
+    // code allocates this memory for the protocol private state.
+    size_t pipe_size;
 
-	// pipe_init2 initializes the protocol-specific pipe data structure.
-	// The last argument is the per-socket protocol private data.
-	int (*pipe_init)(void *, nni_pipe *, void *);
+    // pipe_init2 initializes the protocol-specific pipe data structure.
+    // The last argument is the per-socket protocol private data.
+    int (*pipe_init)(void *, nni_pipe *, void *);
 
-	// pipe_fini releases any pipe data structures.  This is called after
-	// the pipe has been removed from the protocol, and the generic
-	// pipe threads have been stopped.
-	void (*pipe_fini)(void *);
+    // pipe_fini releases any pipe data structures.  This is called after
+    // the pipe has been removed from the protocol, and the generic
+    // pipe threads have been stopped.
+    void (*pipe_fini)(void *);
 
-	// pipe_start is called to register a pipe with the protocol.  The
-	// protocol can reject this, for example if another pipe is already
-	// active on a 1:1 protocol.  The protocol may not block during this.
-	int (*pipe_start)(void *);
+    // pipe_start is called to register a pipe with the protocol.  The
+    // protocol can reject this, for example if another pipe is already
+    // active on a 1:1 protocol.  The protocol may not block during this.
+    int (*pipe_start)(void *);
 
-	// pipe_close is an idempotent, non-blocking, operation, called
-	// when the pipe is being closed.  Any operations pending on the
-	// pipe should be canceled with NNG_ECLOSED.  (Best option is to
-	// use nng_aio_close() on them)
-	void (*pipe_close)(void *);
+    // pipe_close is an idempotent, non-blocking, operation, called
+    // when the pipe is being closed.  Any operations pending on the
+    // pipe should be canceled with NNG_ECLOSED.  (Best option is to
+    // use nng_aio_close() on them)
+    void (*pipe_close)(void *);
 
-	// pipe_stop is called during finalization, to ensure that
-	// the protocol is absolutely finished with the pipe.  It should
-	// wait if necessary to ensure that the pipe is not referenced
-	// anymore by the protocol.  It should not destroy resources.
-	void (*pipe_stop)(void *);
+    // pipe_stop is called during finalization, to ensure that
+    // the protocol is absolutely finished with the pipe.  It should
+    // wait if necessary to ensure that the pipe is not referenced
+    // anymore by the protocol.  It should not destroy resources.
+    void (*pipe_stop)(void *);
 };
 
 struct nni_proto_ctx_ops {
-	// ctx_size is the size of a protocol context object.  The common
-	// code allocates this memory for the protocol private state.
-	size_t ctx_size;
+    // ctx_size is the size of a protocol context object.  The common
+    // code allocates this memory for the protocol private state.
+    size_t ctx_size;
 
-	// ctx_init initializes a new context. The second argument is the
-	// protocol specific socket structure.
-	int (*ctx_init)(void *, void *);
+    // ctx_init initializes a new context. The second argument is the
+    // protocol specific socket structure.
+    int (*ctx_init)(void *, void *);
 
-	// ctx_fini destroys a context.
-	void (*ctx_fini)(void *);
+    // ctx_fini destroys a context.
+    void (*ctx_fini)(void *);
 
-	// ctx_recv is an asynchronous recv.
-	void (*ctx_recv)(void *, nni_aio *);
+    // ctx_recv is an asynchronous recv.
+    void (*ctx_recv)(void *, nni_aio *);
 
-	// ctx_send is an asynchronous send.
-	void (*ctx_send)(void *, nni_aio *);
+    // ctx_send is an asynchronous send.
+    void (*ctx_send)(void *, nni_aio *);
 
-	// ctx_drain drains the context, signaling the aio when done.
-	// This should prevent any further receives from completing,
-	// and only sends that had already been submitted should be
-	// permitted to continue.  It may be NULL for protocols where
-	// draining without an ability to receive makes no sense
-	// (e.g. REQ or SURVEY).
-	void (*ctx_drain)(void *, nni_aio *);
+    // ctx_drain drains the context, signaling the aio when done.
+    // This should prevent any further receives from completing,
+    // and only sends that had already been submitted should be
+    // permitted to continue.  It may be NULL for protocols where
+    // draining without an ability to receive makes no sense
+    // (e.g. REQ or SURVEY).
+    void (*ctx_drain)(void *, nni_aio *);
 
-	// ctx_options array.
-	nni_option *ctx_options;
+    // ctx_options array.
+    nni_option *ctx_options;
 };
 
 struct nni_proto_sock_ops {
-	// ctx_size is the size of a protocol socket object.  The common
-	// code allocates this memory for the protocol private state.
-	size_t sock_size;
+    // ctx_size is the size of a protocol socket object.  The common
+    // code allocates this memory for the protocol private state.
+    size_t sock_size;
 
-	// sock_init2 initializes the protocol instance, which will be stored
-	// on the socket. This is run without the sock lock held.
-	int (*sock_init)(void *, nni_sock *);
+    // sock_init2 initializes the protocol instance, which will be stored
+    // on the socket. This is run without the sock lock held.
+    int (*sock_init)(void *, nni_sock *);
 
-	// sock_fini destroys the protocol instance.  This is run without the
-	// socket lock held, and is intended to release resources.  It may
-	// block as needed.
-	void (*sock_fini)(void *);
+    // sock_fini destroys the protocol instance.  This is run without the
+    // socket lock held, and is intended to release resources.  It may
+    // block as needed.
+    void (*sock_fini)(void *);
 
-	// Open the protocol instance.  This is run with the lock held,
-	// and intended to allow the protocol to start any asynchronous
-	// processing.
-	void (*sock_open)(void *);
+    // Open the protocol instance.  This is run with the lock held,
+    // and intended to allow the protocol to start any asynchronous
+    // processing.
+    void (*sock_open)(void *);
 
-	// Close the protocol instance.  This is run with the lock held,
-	// and intended to initiate closure of the socket.  For example,
-	// it can signal the socket worker threads to exit.
-	void (*sock_close)(void *);
+    // Close the protocol instance.  This is run with the lock held,
+    // and intended to initiate closure of the socket.  For example,
+    // it can signal the socket worker threads to exit.
+    void (*sock_close)(void *);
 
-	// Send a message.
-	void (*sock_send)(void *, nni_aio *);
+    // Send a message.
+    void (*sock_send)(void *, nni_aio *);
 
-	// Receive a message.
-	void (*sock_recv)(void *, nni_aio *);
+    // Receive a message.
+    void (*sock_recv)(void *, nni_aio *);
 
-	// Options. Must not be NULL. Final entry should have NULL name.
-	nni_option *sock_options;
+    // Options. Must not be NULL. Final entry should have NULL name.
+    nni_option *sock_options;
 };
 
 // 标识node节点
 typedef struct nni_proto_id {
-	uint16_t    p_id;
-	const char *p_name;
+    uint16_t    p_id;
+    const char *p_name;
 } nni_proto_id;
 
 struct nni_proto {
-	uint32_t                  proto_version;  // Ops vector version
-	nni_proto_id              proto_self;     // Our identity
-	nni_proto_id              proto_peer;     // Peer identity
-	uint32_t                  proto_flags;    // Protocol flags
-	const nni_proto_sock_ops *proto_sock_ops; // Per-socket opeations
-	const nni_proto_pipe_ops *proto_pipe_ops; // Per-pipe operations.
-	const nni_proto_ctx_ops * proto_ctx_ops;  // Context operations.
+    uint32_t                  proto_version;  // Ops vector version
+    nni_proto_id              proto_self;     // Our identity
+    nni_proto_id              proto_peer;     // Peer identity
+    uint32_t                  proto_flags;    // Protocol flags
+    const nni_proto_sock_ops *proto_sock_ops; // Per-socket opeations
+    const nni_proto_pipe_ops *proto_pipe_ops; // Per-pipe operations.
+    const nni_proto_ctx_ops * proto_ctx_ops;  // Context operations.
 
-	// proto_init, if not NULL, provides a function that initializes
-	// global values.  The main purpose of this may be to initialize
-	// protocol option values.
-	int (*proto_init)(void);
+    // proto_init, if not NULL, provides a function that initializes
+    // global values.  The main purpose of this may be to initialize
+    // protocol option values.
+    int (*proto_init)(void);
 
-	// proto_fini, if not NULL, is called at shutdown, to release
-	// any resources allocated at proto_init time.
-	void (*proto_fini)(void);
+    // proto_fini, if not NULL, is called at shutdown, to release
+    // any resources allocated at proto_init time.
+    void (*proto_fini)(void);
 };
 
 // We quite intentionally use a signature where the upper word is nonzero,
