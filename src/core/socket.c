@@ -1646,6 +1646,8 @@ nni_dialer_reap(nni_dialer *d)
 }
 
 // 对于服务端listern会创建pipe
+// 给listen调节子添加新pipe
+// tpipe时给传输层用的参数nni_pipe->p_tran_data
 void
 nni_listener_add_pipe(nni_listener *l, void *tpipe)
 {
@@ -1654,14 +1656,17 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
     nni_pipe *p;
 
     nni_mtx_lock(&s->s_mx);
+    // 正处于关闭
+    // 或者创建管道失败
     if (s->s_closed || l->l_closing ||
         (nni_pipe_create_listener(&p, l, tpipe) != 0)) {
         nni_mtx_unlock(&s->s_mx);
         return;
     }
 
-    // listen pip
+    // listen pipea管道添加
     nni_list_append(&l->l_pipes, p);
+    // 添加active的pipes
     nni_list_append(&s->s_pipes, p);
     nni_mtx_unlock(&s->s_mx);
 #ifdef NNG_ENABLE_STATS
@@ -1669,6 +1674,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
     nni_stat_inc(&s->st_pipes, 1);
 #endif
 
+    // 调用listen socket添加pipe前的回调
     nni_pipe_run_cb(p, NNG_PIPE_EV_ADD_PRE);
 
     nni_mtx_lock(&s->s_mx);
@@ -1681,7 +1687,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         nni_pipe_rele(p);
         return;
     }
-    // 传入的应该是各个协议实现对应的pip
+    // 传入的应该是各个协议实现对应的pipe
     if (p->p_proto_ops.pipe_start(p->p_proto_data) != 0) {
         nni_mtx_unlock(&s->s_mx);
 #ifdef NNG_ENABLE_STATS

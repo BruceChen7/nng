@@ -48,6 +48,7 @@ struct req0_ctx {
 // A req0_sock is our per-socket protocol private structure.
 struct req0_sock {
     // int32_t
+    // 重试间隔
     nni_duration   retry;
     bool           closed;
     nni_atomic_int ttl;
@@ -57,6 +58,7 @@ struct req0_sock {
     nni_list       busy_pipes;
     nni_list       stop_pipes;
     nni_list       contexts;
+    // 发送队列，可以发送数据
     nni_list       send_queue; // contexts waiting to send.
     nni_id_map     requests;   // contexts by request ID
     // readable pipe fd
@@ -71,6 +73,8 @@ struct req0_pipe {
     nni_pipe *    pipe;
     req0_sock *   req;
     nni_list_node node;
+    // pipe中要发送的数据
+    // 具体类型是req0_ctx
     nni_list      contexts; // contexts with pending traffic
     bool          closed;
     nni_aio       aio_send;
@@ -183,7 +187,7 @@ req0_pipe_init(void *arg, nni_pipe *pipe, void *s)
     NNI_LIST_NODE_INIT(&p->node);
     NNI_LIST_INIT(&p->contexts, req0_ctx, pipe_node);
     p->pipe = pipe;
-    // 设置实例
+    // 设置协议s实例
     p->req  = s;
     return (0);
 }
@@ -465,6 +469,7 @@ req0_run_send_queue(req0_sock *s, nni_list *sent_list)
     while ((ctx = nni_list_first(&s->send_queue)) != NULL) {
         req0_pipe *p;
 
+        // 没有一个可用的pipe
         if ((p = nni_list_first(&s->ready_pipes)) == NULL) {
             return;
         }
@@ -491,8 +496,10 @@ req0_run_send_queue(req0_sock *s, nni_list *sent_list)
         nni_list_node_remove(&ctx->pipe_node);
         nni_list_append(&p->contexts, ctx);
 
+        // 从ready_pipes加入到busy pipes
         nni_list_remove(&s->ready_pipes, p);
         nni_list_append(&s->busy_pipes, p);
+        // 如果没有reay pipe可以用来发送了
         if (nni_list_empty(&s->ready_pipes)) {
             nni_pollable_clear(&s->writable);
         }
@@ -805,6 +812,7 @@ static nni_proto_pipe_ops req0_pipe_ops = {
     .pipe_size  = sizeof(req0_pipe),
     .pipe_init  = req0_pipe_init,
     .pipe_fini  = req0_pipe_fini,
+    // 这个地方可能由nni_listener_add_pipe来调用
     .pipe_start = req0_pipe_start,
     .pipe_close = req0_pipe_close,
     .pipe_stop  = req0_pipe_stop,

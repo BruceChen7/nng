@@ -66,6 +66,7 @@ nni_pollable_raise(nni_pollable *p)
     if (p == NULL) {
         return;
     }
+    // 之前没有被设置过
     if (!nni_atomic_swap_bool(&p->p_raised, true)) {
         uint64_t fds;
         if ((fds = nni_atomic_get64(&p->p_fds)) != (uint64_t) -1) {
@@ -81,6 +82,7 @@ nni_pollable_clear(nni_pollable *p)
     if (p == NULL) {
         return;
     }
+    // 该管道之前已经被唤醒，
     if (nni_atomic_swap_bool(&p->p_raised, false)) {
         uint64_t fds;
         if ((fds = nni_atomic_get64(&p->p_fds)) != (uint64_t) -1) {
