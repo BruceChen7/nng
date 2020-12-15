@@ -251,6 +251,7 @@ void
 nni_aio_set_output(nni_aio *aio, unsigned index, void *data)
 {
     if (index < NNI_NUM_ELEMENTS(aio->a_outputs)) {
+        // 设置tcp_connection
         aio->a_outputs[index] = data;
     }
 }
@@ -386,6 +387,7 @@ nni_aio_finish_impl(
 {
     nni_mtx_lock(&nni_aio_lk);
 
+    // 过期节点列表中删除
     nni_list_node_remove(&aio->a_expire_node);
 
     aio->a_result     = rv;
@@ -400,6 +402,7 @@ nni_aio_finish_impl(
     aio->a_sleep  = false;
     nni_mtx_unlock(&nni_aio_lk);
 
+    // 同步，那么理解执行任务
     if (sync) {
         nni_task_exec(&aio->a_task);
     } else {

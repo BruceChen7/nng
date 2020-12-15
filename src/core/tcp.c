@@ -302,6 +302,7 @@ tcp_listener_listen(void *arg)
 	return (nni_tcp_listener_listen(l->l, &l->sa));
 }
 
+// accept a tcp connection
 static void
 tcp_listener_accept(void *arg, nng_aio *aio)
 {

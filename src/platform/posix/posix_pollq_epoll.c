@@ -57,9 +57,10 @@ struct nni_posix_pollq {
     int      evfd;  // event fd (to wake us for other stuff)
     bool     close; // request for worker to exit
     nni_thr  thr;   // worker thread
-    nni_list reapq;
+    nni_list reapq; // 回收节点
 };
 
+// epoll实例
 struct nni_posix_pfd {
     nni_list_node    node;
     nni_posix_pollq *pq;
@@ -87,9 +88,11 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
 
     pq = &nni_posix_global_pollq;
 
+    // epoll 的初始化
     (void) fcntl(fd, F_SETFD, FD_CLOEXEC);
     (void) fcntl(fd, F_SETFL, O_NONBLOCK);
 
+    // 分配一个epoll 实例
     if ((pfd = NNI_ALLOC_STRUCT(pfd)) == NULL) {
         return (NNG_ENOMEM);
     }
@@ -110,6 +113,7 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
     ev.events   = 0;
     ev.data.ptr = pfd;
 
+    // 添加一个时间，啥事件都没有添加
     if (epoll_ctl(pq->epfd, EPOLL_CTL_ADD, fd, &ev) != 0) {
         rv = nni_plat_errno(errno);
         nni_cv_fini(&pfd->cv);
@@ -141,6 +145,7 @@ nni_posix_pfd_arm(nni_posix_pfd *pfd, unsigned events)
         ev.events   = events | NNI_EPOLL_FLAGS;
         ev.data.ptr = pfd;
 
+        // 添加事件
         if (epoll_ctl(pq->epfd, EPOLL_CTL_MOD, pfd->fd, &ev) != 0) {
             int rv = nni_plat_errno(errno);
             nni_mtx_unlock(&pfd->mtx);
@@ -195,6 +200,7 @@ nni_posix_pfd_fini(nni_posix_pfd *pfd)
     uint64_t one = 1;
 
     nni_mtx_lock(&pq->mtx);
+    // 放到回收列表中
     nni_list_append(&pq->reapq, pfd);
 
     // Wake the remote side.  For now we assume this always
@@ -238,6 +244,7 @@ nni_posix_pollq_reap(nni_posix_pollq *pq)
     nni_mtx_unlock(&pq->mtx);
 }
 
+// io做到io循环
 static void
 nni_posix_poll_thr(void *arg)
 {
@@ -248,6 +255,7 @@ nni_posix_poll_thr(void *arg)
         int  n;
         bool reap = false;
 
+        // 等待事件可以用
         n = epoll_wait(pq->epfd, events, NNI_MAX_EPOLL_EVENTS, -1);
         if ((n < 0) && (errno == EBADF)) {
             // Epoll fd closed, bail.
@@ -267,6 +275,7 @@ nni_posix_poll_thr(void *arg)
                     sizeof(clear)) {
                     nni_panic("read from evfd incorrect!");
                 }
+                // 用来回收
                 reap = true;
             } else {
                 nni_posix_pfd *  pfd = ev->data.ptr;
@@ -279,6 +288,7 @@ nni_posix_poll_thr(void *arg)
                         (unsigned) EPOLLERR);
 
                 nni_mtx_lock(&pfd->mtx);
+                // 清空相关事件
                 pfd->events &= ~mask;
                 cb    = pfd->cb;
                 cbarg = pfd->arg;
@@ -292,6 +302,7 @@ nni_posix_poll_thr(void *arg)
         }
 
         if (reap) {
+            // 回收相关资源
             nni_posix_pollq_reap(pq);
             nni_mtx_lock(&pq->mtx);
             if (pq->close) {
@@ -353,6 +364,7 @@ nni_posix_pollq_add_eventfd(nni_posix_pollq *pq)
     return (0);
 }
 
+// 初始化会创建epoll实例
 static int
 nni_posix_pollq_create(nni_posix_pollq *pq)
 {
@@ -373,14 +385,17 @@ nni_posix_pollq_create(nni_posix_pollq *pq)
 
     pq->close = false;
 
+    // 初始化列表
     NNI_LIST_INIT(&pq->reapq, nni_posix_pfd, node);
     nni_mtx_init(&pq->mtx);
 
+    // 添加eventfd
     if ((rv = nni_posix_pollq_add_eventfd(pq)) != 0) {
         (void) close(pq->epfd);
         nni_mtx_fini(&pq->mtx);
         return (rv);
     }
+    // io线程初始化
     if ((rv = nni_thr_init(&pq->thr, nni_posix_poll_thr, pq)) != 0) {
         (void) close(pq->epfd);
         (void) close(pq->evfd);

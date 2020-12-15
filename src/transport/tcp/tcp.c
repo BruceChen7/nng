@@ -776,11 +776,14 @@ tcptran_accept_cb(void *arg)
 
     nni_mtx_lock(&ep->mtx);
 
+    //aio 结果已经不为0
     if ((rv = nni_aio_result(aio)) != 0) {
         goto error;
     }
 
+    // 获取分配到的nng_stream连接
     conn = nni_aio_get_output(aio, 0);
+    // 初始化pipe
     if ((rv = tcptran_pipe_alloc(&p)) != 0) {
         nng_stream_free(conn);
         goto error;
@@ -792,6 +795,7 @@ tcptran_accept_cb(void *arg)
         rv = NNG_ECLOSED;
         goto error;
     }
+    // 开始协商
     tcptran_pipe_start(p, conn, ep);
     nng_stream_listener_accept(ep->listener, ep->connaio);
     nni_mtx_unlock(&ep->mtx);
@@ -961,6 +965,7 @@ tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
         return (rv);
     }
 
+    // 将ep->connaio设置为tcptran_accept_cb
     if (((rv = nni_aio_alloc(&ep->connaio, tcptran_accept_cb, ep)) != 0) ||
         ((rv = nni_aio_alloc(&ep->timeaio, tcptran_timer_cb, ep)) != 0) ||
         ((rv = nng_stream_listener_alloc_url(&ep->listener, url)) != 0)) {

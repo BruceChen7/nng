@@ -233,6 +233,7 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
 {
     nni_tcp_conn *c = arg;
 
+    // 错误的消息
     if (events & (NNI_POLL_HUP | NNI_POLL_ERR | NNI_POLL_INVAL)) {
         tcp_error(c, NNG_ECONNSHUT);
         return;
@@ -483,6 +484,7 @@ tcp_set(void *arg, const char *name, const void *buf, size_t sz, nni_type t)
     return (nni_setopt(tcp_options, name, c, buf, sz, t));
 }
 
+// 分配以tcp连接
 int
 nni_posix_tcp_alloc(nni_tcp_conn **cp, nni_tcp_dialer *d)
 {
@@ -495,9 +497,11 @@ nni_posix_tcp_alloc(nni_tcp_conn **cp, nni_tcp_dialer *d)
     c->dialer = d;
 
     nni_mtx_init(&c->mtx);
+    // 分配tcp连接的读写队列
     nni_aio_list_init(&c->readq);
     nni_aio_list_init(&c->writeq);
 
+    // 设置tcp回调
     c->stream.s_free  = tcp_free;
     c->stream.s_close = tcp_close;
     c->stream.s_recv  = tcp_recv;
@@ -524,5 +528,6 @@ nni_posix_tcp_start(nni_tcp_conn *c, int nodelay, int keepalive)
     (void) setsockopt(nni_posix_pfd_fd(c->pfd), SOL_SOCKET, SO_KEEPALIVE,
         &keepalive, sizeof(int));
 
+    // 设置回调函数
     nni_posix_pfd_set_cb(c->pfd, tcp_cb, c);
 }

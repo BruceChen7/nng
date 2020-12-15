@@ -18,6 +18,7 @@
 
 struct nni_tcp_conn {
 	nng_stream      stream;
+    // epoll实例
 	nni_posix_pfd * pfd;
 	nni_list        readq;
 	nni_list        writeq;

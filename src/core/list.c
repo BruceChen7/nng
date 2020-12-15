@@ -168,6 +168,7 @@ nni_list_node_active(nni_list_node *node)
 	return (node->ln_next == NULL ? 0 : 1);
 }
 
+// 将该node节点移除
 void
 nni_list_node_remove(nni_list_node *node)
 {
