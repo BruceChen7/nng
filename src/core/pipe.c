@@ -25,6 +25,7 @@ static nni_mtx    pipes_lk;
 int
 nni_pipe_sys_init(void)
 {
+    // 初始化锁
     nni_mtx_init(&pipes_lk);
 
     // Pipe IDs needs to have high order bit clear, and we want
@@ -37,6 +38,7 @@ nni_pipe_sys_init(void)
 void
 nni_pipe_sys_fini(void)
 {
+    // 等待回收线程
     nni_reap_drain();
     nni_mtx_fini(&pipes_lk);
     nni_id_map_fini(&pipes);

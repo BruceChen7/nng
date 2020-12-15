@@ -25,6 +25,7 @@ nni_id_map_init(nni_id_map *m, uint32_t lo, uint32_t hi, bool randomize)
     if (lo == 0) {
         lo = 1;
     }
+    // 32位
     if (hi == 0) {
         hi = 0xffffffffu;
     }
@@ -32,7 +33,9 @@ nni_id_map_init(nni_id_map *m, uint32_t lo, uint32_t hi, bool randomize)
     NNI_ASSERT(hi > lo);
     m->id_entries  = NULL;
     m->id_count    = 0;
+    // 负载因子
     m->id_load     = 0;
+    // 当前最大容量
     m->id_cap      = 0;
     m->id_max_load = 0;
     m->id_min_load = 0; // never shrink below this
@@ -89,7 +92,7 @@ id_find(nni_id_map *m, uint32_t id)
         // 下一个index
         index = ID_NEXT(m, index);
 
-        // 又回到了起使的地方，那么搜完了
+        // 又回到了开始的地方，那么搜完了
         if (index == start) {
             break;
         }
@@ -118,7 +121,7 @@ id_resize(nni_id_map *m)
     nni_id_entry *old_entries;
     uint32_t      i;
 
-    // 负载因子在返回之间
+    // 负载因子在合理的区间
     if ((m->id_load < m->id_max_load) && (m->id_load >= m->id_min_load)) {
         // No resize needed.
         return (0);
@@ -146,6 +149,7 @@ id_resize(nni_id_map *m)
     m->id_cap     = new_cap;
     m->id_load    = 0;
     if (new_cap > 8) {
+        // 1/8 ~ 2 /3 为合理的负载
         m->id_min_load = new_cap / 8;
         m->id_max_load = new_cap * 2 / 3;
     } else {
@@ -167,11 +171,13 @@ id_resize(nni_id_map *m)
             if (new_entries[index].val == NULL) {
                 // As we are hitting this entry for the first
                 // time, it won't have any skips.
+                // 没有跳过去
                 NNI_ASSERT(new_entries[index].skips == 0);
                 new_entries[index].val = old_entries[i].val;
                 new_entries[index].key = old_entries[i].key;
                 break;
             }
+            // 跳过去增加
             new_entries[index].skips++;
             index = ID_NEXT(m, index);
         }
@@ -242,6 +248,7 @@ nni_id_set(nni_id_map *m, uint32_t id, void *val)
         return (0);
     }
 
+    // 取模
     index = ID_INDEX(m, id);
     for (;;) {
         ent = &m->id_entries[index];
@@ -265,6 +272,7 @@ nni_id_set(nni_id_map *m, uint32_t id, void *val)
     }
 }
 
+// idp时时返回参数，用来标识哪个index被占用
 int
 nni_id_alloc(nni_id_map *m, uint32_t *idp, void *val)
 {
@@ -275,6 +283,7 @@ nni_id_alloc(nni_id_map *m, uint32_t *idp, void *val)
 
     // range is inclusive, so > to get +1 effect.
     // id_count
+    // 哈希表中的数量太多，直接返回错误
     if (m->id_count > (m->id_max_val - m->id_min_val)) {
         // Really more like ENOSPC.. the table is filled to max.
         return (NNG_ENOMEM);
@@ -283,11 +292,12 @@ nni_id_alloc(nni_id_map *m, uint32_t *idp, void *val)
     for (;;) {
         id = m->id_dyn_val;
         m->id_dyn_val++;
+        // 从最小值开始
         if (m->id_dyn_val > m->id_max_val) {
             m->id_dyn_val = m->id_min_val;
         }
 
-        // 返回 -1
+        // 返回 -1，标识没有占用
         if (id_find(m, id) == (size_t) -1) {
             break;
         }

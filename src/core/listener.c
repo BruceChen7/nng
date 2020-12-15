@@ -28,6 +28,7 @@ int
 nni_listener_sys_init(void)
 {
     nni_id_map_init(&listeners, 1, 0x7fffffff, false);
+    // 初始化锁
     nni_mtx_init(&listeners_lk);
 
     return (0);
