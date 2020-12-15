@@ -57,6 +57,7 @@ struct nni_socket {
     nni_cv        s_cv;
     nni_cv        s_close_cv;
 
+    // 这里是在全局socket hash表中的id值
     uint32_t s_id;
     uint32_t s_flags;
     unsigned s_ref;  // protected by global lock
@@ -588,6 +589,7 @@ nni_sock_create(nni_sock **sp, const nni_proto *proto)
     }
 
     NNI_ASSERT(s->s_sock_ops.sock_open != NULL);
+
     NNI_ASSERT(s->s_sock_ops.sock_close != NULL);
 
     // 初始化各个链表
@@ -647,8 +649,9 @@ nni_sock_sys_init(void)
     NNI_LIST_INIT(&sock_list, nni_sock, s_node);
     nni_mtx_init(&sock_lk);
 
-    // 初始化全局sock_ids
+    // 初始化全局sock_ids hash表
     nni_id_map_init(&sock_ids, 1, 0x7fffffff, false);
+    // 初始化contextid表
     nni_id_map_init(&ctx_ids, 1, 0x7fffffff, false);
     inited = true;
     return (0);
@@ -663,7 +666,7 @@ nni_sock_sys_fini(void)
     inited = false;
 }
 
-// 创建一个socket
+// 创建nni_sock，并初始化它
 int
 nni_sock_open(nni_sock **sockp, const nni_proto *proto)
 {
@@ -683,12 +686,13 @@ nni_sock_open(nni_sock **sockp, const nni_proto *proto)
     }
 
     nni_mtx_lock(&sock_lk);
+    // 这个s->s_id是hash表中的id值
     if (nni_id_alloc(&sock_ids, &s->s_id, s) != 0) {
         sock_destroy(s);
     } else {
-        // 放到全局列表中
+        // 存放到全局的李彪中
         nni_list_append(&sock_list, s);
-        // 调用socket open来打开
+        // 调用协议本身来打开， 比如req0协议，这个函数啥都不干
         s->s_sock_ops.sock_open(s->s_data);
         *sockp = s;
     }

@@ -27,6 +27,7 @@ static nni_mtx    listeners_lk;
 int
 nni_listener_sys_init(void)
 {
+    // 初始化listeners hash map
     nni_id_map_init(&listeners, 1, 0x7fffffff, false);
     // 初始化锁
     nni_mtx_init(&listeners_lk);
@@ -222,6 +223,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
     int           rv;
     nni_url *     url;
 
+    // path url失败
     if ((rv = nni_url_parse(&url, url_str)) != 0) {
         return (rv);
     }
@@ -241,7 +243,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
     l->l_closed  = false;
     l->l_closing = false;
     l->l_data    = NULL;
-    // 引用 + 1
+    // 引用 1
     l->l_ref     = 1;
     l->l_sock    = s;
     l->l_tran    = tran;
@@ -263,7 +265,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
 
     nni_mtx_lock(&listeners_lk);
     // 分配l_id
-    // listeners是一个全局的列表
+    // listeners是一个全局的hash表
     rv = nni_id_alloc(&listeners, &l->l_id, l);
     nni_mtx_unlock(&listeners_lk);
 
@@ -274,6 +276,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
     if ((rv != 0) || ((rv = l->l_ops.l_init(&l->l_data, url, l)) != 0) ||
         ((rv = nni_sock_add_listener(s, l)) != 0)) {
         nni_mtx_lock(&listeners_lk);
+        // 从hash表中移除该id
         nni_id_remove(&listeners, l->l_id);
         nni_mtx_unlock(&listeners_lk);
 #ifdef NNG_ENABLE_STATS
@@ -299,6 +302,7 @@ nni_listener_find(nni_listener **lp, uint32_t id)
 
     nni_mtx_lock(&listeners_lk);
     if ((l = nni_id_get(&listeners, id)) != NULL) {
+        // 引用数+1
         l->l_ref++;
         *lp = l;
     }
@@ -361,6 +365,7 @@ nni_listener_close_rele(nni_listener *l)
         return;
     }
     l->l_closed = true;
+    // 从hash表中删除
     nni_id_remove(&listeners, l->l_id);
     nni_mtx_unlock(&listeners_lk);
 
@@ -426,6 +431,7 @@ listener_accept_start(nni_listener *l)
     l->l_ops.l_accept(l->l_data, &l->l_acc_aio);
 }
 
+// 开始启动listener
 int
 nni_listener_start(nni_listener *l, int flags)
 {
@@ -438,12 +444,14 @@ nni_listener_start(nni_listener *l, int flags)
     }
 
     // 绑定对应的端口和地址
+    // 对应tcp而言，tcptran_ep_bind调用的是
     if ((rv = l->l_ops.l_bind(l->l_data)) != 0) {
         nni_listener_bump_error(l, rv);
         nni_atomic_flag_reset(&l->l_started);
         return (rv);
     }
 
+    // 开始accept
     listener_accept_start(l);
 
     return (0);

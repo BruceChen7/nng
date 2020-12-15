@@ -497,22 +497,24 @@ nng_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
     nni_sock *    s;
     nni_listener *l;
 
-    // 在全局列表中找到对应的socket
+    // 在全局列表中找到对应的nng_socket
     // 没有找到直接返回
     if ((rv = nni_sock_find(&s, sid.id)) != 0) {
         return (rv);
     }
-    // listener create
+    // listener socket创建，找到对应的传输层操作的具体实现，并初始化给listener
     if ((rv = nni_listener_create(&l, s, addr)) != 0) {
         nni_sock_rele(s);
         return (rv);
     }
+    // 开始启动listener
     if ((rv = nni_listener_start(l, flags)) != 0) {
         nni_listener_close(l);
         nni_sock_rele(s);
         return (rv);
     }
 
+    // 找到在全局hash表中的逻辑id
     if (lp != NULL) {
         nng_listener lid;
         lid.id = nni_listener_id(l);

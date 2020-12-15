@@ -37,8 +37,8 @@ nni_init_helper(void)
         ((rv = nni_reap_sys_init()) != 0) || // 初始化回收线程
         ((rv = nni_timer_sys_init()) != 0) ||  // 初始化timer
         ((rv = nni_aio_sys_init()) != 0) ||
-        ((rv = nni_sock_sys_init()) != 0) ||  // 初始化socket_id map, 上下文map
-        ((rv = nni_listener_sys_init()) != 0) ||  // 初始化system listener
+        ((rv = nni_sock_sys_init()) != 0) ||  // 初始化socket_id 哈希表, 上下哈希表
+        ((rv = nni_listener_sys_init()) != 0) ||  // 初始化system listener hash表
         ((rv = nni_dialer_sys_init()) != 0) ||
         ((rv = nni_pipe_sys_init()) != 0) ||
         ((rv = nni_tls_sys_init()) != 0) ||

@@ -62,7 +62,7 @@ nni_proto_open(nng_socket *sockidp, const nni_proto *proto)
     if (((rv = nni_init()) != 0) || ((rv = nni_proto_init(proto)) != 0)) {
         return (rv);
     }
-    // 打开socket
+    //  创建一个nng_socket
     if ((rv = nni_sock_open(&sock, proto)) == 0) {
         nng_socket s;
         // 设置id

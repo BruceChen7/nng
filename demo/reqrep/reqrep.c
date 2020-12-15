@@ -73,7 +73,7 @@ server(const char *url)
     nng_socket sock;
     int        rv;
 
-    // 打开socket
+    // 创建一个nng_socket
     if ((rv = nng_rep0_open(&sock)) != 0) {
         fatal("nng_rep0_open", rv);
     }
