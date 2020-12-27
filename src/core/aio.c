@@ -352,6 +352,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
     aio->a_cancel_arg = data;
 
     if (aio->a_expire != NNI_TIME_NEVER) {
+        // 添加超时时任务
         nni_aio_expire_add(aio);
     }
     nni_mtx_unlock(&nni_aio_lk);
@@ -402,11 +403,11 @@ nni_aio_finish_impl(
     aio->a_sleep  = false;
     nni_mtx_unlock(&nni_aio_lk);
 
-    // 同步，那么理解执行任务
+    // 同步，那么立即执行任务
     if (sync) {
         nni_task_exec(&aio->a_task);
     } else {
-        // 分发任务
+        // 异步分发任务
         nni_task_dispatch(&aio->a_task);
     }
 }

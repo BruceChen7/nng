@@ -116,7 +116,7 @@ tcp_listener_doaccept(nni_tcp_listener *l)
             case EWOULDBLOCK:
 #endif
 #endif
-                // 添加读事件
+                // 再次添加读事件
                 rv = nni_posix_pfd_arm(l->pfd, NNI_POLL_IN);
                 if (rv != 0) {
                     // 移除这次aio
@@ -167,6 +167,7 @@ tcp_listener_doaccept(nni_tcp_listener *l)
         nni_posix_tcp_start(c, nd, ka);
         // 设置aio的结果为添加的connection
         nni_aio_set_output(aio, 0, c);
+        // 结束aio操作
         nni_aio_finish(aio, 0, 0);
     }
 }
@@ -215,6 +216,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
     int                     fd;
     nni_posix_pfd *         pfd;
 
+    // 解析地址
     if (((len = nni_posix_nn2sockaddr(&ss, sa)) == 0) ||
         ((ss.ss_family != AF_INET) && (ss.ss_family != AF_INET6))) {
         return (NNG_EADDRINVAL);
@@ -236,7 +238,7 @@ nni_tcp_listener_listen(nni_tcp_listener *l, const nni_sockaddr *sa)
         return (nni_plat_errno(errno));
     }
 
-    // 初始化epoll实例
+    // 初始化pfd，并添加到epoll中，但是没有添加任何事件
     if ((rv = nni_posix_pfd_init(&pfd, fd)) != 0) {
         nni_mtx_unlock(&l->mtx);
         (void) close(fd);
@@ -303,6 +305,7 @@ nni_tcp_listener_fini(nni_tcp_listener *l)
     NNI_FREE_STRUCT(l);
 }
 
+// 用来真正的accept
 void
 nni_tcp_listener_accept(nni_tcp_listener *l, nni_aio *aio)
 {

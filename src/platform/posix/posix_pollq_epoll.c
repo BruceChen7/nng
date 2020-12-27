@@ -65,6 +65,7 @@ struct nni_posix_pfd {
     nni_list_node    node;
     nni_posix_pollq *pq;
     int              fd;
+    // fd 可读可写的回调
     nni_posix_pfd_cb cb;
     void *           arg;
     // 已经关闭
@@ -116,7 +117,7 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
     ev.events   = 0;
     ev.data.ptr = pfd;
 
-    // 添加一个时间，啥事件都没有添加
+    // 添加一个fd，啥事件都没有添加
     if (epoll_ctl(pq->epfd, EPOLL_CTL_ADD, fd, &ev) != 0) {
         rv = nni_plat_errno(errno);
         nni_cv_fini(&pfd->cv);
@@ -169,7 +170,9 @@ void
 nni_posix_pfd_set_cb(nni_posix_pfd *pfd, nni_posix_pfd_cb cb, void *arg)
 {
     nni_mtx_lock(&pfd->mtx);
+    // fd对应的回调
     pfd->cb  = cb;
+    // 设置arg
     pfd->arg = arg;
     nni_mtx_unlock(&pfd->mtx);
 }

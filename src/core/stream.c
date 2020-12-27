@@ -222,6 +222,7 @@ nng_stream_listener_free(nng_stream_listener *l)
 int
 nng_stream_listener_listen(nng_stream_listener *l)
 {
+    // 对于tcp层, 调用tcp_listener_listen
     return (l->sl_listen(l));
 }
 
@@ -229,6 +230,7 @@ void
 nng_stream_listener_accept(nng_stream_listener *l, nng_aio *aio)
 {
     // 调用tcp_listener_accept
+    // nng_stream_listener_accept将会调用该函数
     l->sl_accept(l, aio);
 }
 

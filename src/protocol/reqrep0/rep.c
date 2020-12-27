@@ -30,7 +30,7 @@ struct rep0_ctx {
     rep0_sock *   sock;
     // 对应哪个pipe id
     uint32_t      pipe_id;
-    // send pip
+    // send 端
     rep0_pipe *   spipe; // send pipe
     // send aio操作
     nni_aio *     saio;  // send aio

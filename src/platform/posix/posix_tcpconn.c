@@ -105,6 +105,7 @@ tcp_doread(nni_tcp_conn *c)
     nni_aio *aio;
     int      fd;
 
+    // 如果已经关闭, 或者对应的fd无效
     if (c->closed || ((fd = nni_posix_pfd_fd(c->pfd)) < 0)) {
         return;
     }
@@ -118,6 +119,7 @@ tcp_doread(nni_tcp_conn *c)
         nni_iov *    aiov;
         struct iovec iovec[16];
 
+        // 获取naiov
         nni_aio_get_iov(aio, &naiov, &aiov);
         if (naiov > NNI_NUM_ELEMENTS(iovec)) {
             nni_aio_list_remove(aio);
@@ -133,7 +135,7 @@ tcp_doread(nni_tcp_conn *c)
             }
         }
 
-        // 使用readv
+        // 使用readv， 来进行io读
         if ((n = readv(fd, iovec, niov)) < 0) {
             switch (errno) {
             case EINTR:
@@ -247,12 +249,15 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
     nni_mtx_lock(&c->mtx);
     // 如果读事件
     if ((events & NNI_POLL_IN) != 0) {
-        // 首先处理事件
+        // 首先处理读事件
         tcp_doread(c);
     }
+    // 然后处理写事件
     if ((events & NNI_POLL_OUT) != 0) {
         tcp_dowrite(c);
     }
+    // 如果还需要写，那么添加相关的事件，
+    // 再次注册相关事件
     events = 0;
     if (!nni_list_empty(&c->writeq)) {
         events |= NNI_POLL_OUT;

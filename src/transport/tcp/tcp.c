@@ -49,6 +49,7 @@ struct tcptran_pipe {
     nni_mtx         mtx;
 };
 
+// 用来管理整个server 中tcp连接
 struct tcptran_ep {
     nni_mtx              mtx;
     uint16_t             proto;
@@ -877,10 +878,12 @@ tcptran_ep_init(tcptran_ep **epp, nng_url *url, nni_sock *sock)
 {
     tcptran_ep *ep;
 
+    // 分配内存
     if ((ep = NNI_ALLOC_STRUCT(ep)) == NULL) {
         return (NNG_ENOMEM);
     }
     nni_mtx_init(&ep->mtx);
+    // 全局tcp连接管理信息
     NNI_LIST_INIT(&ep->busypipes, tcptran_pipe, node);
     NNI_LIST_INIT(&ep->waitpipes, tcptran_pipe, node);
     NNI_LIST_INIT(&ep->negopipes, tcptran_pipe, node);
@@ -967,6 +970,7 @@ tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
         return (NNG_EADDRINVAL);
     }
 
+    // tcp传输层管理结构初始化
     if ((rv = tcptran_ep_init(&ep, url, sock)) != 0) {
         return (rv);
     }
@@ -1125,6 +1129,7 @@ tcptran_ep_accept(void *arg, nni_aio *aio)
         nni_aio_finish_error(aio, NNG_EBUSY);
         return;
     }
+    // 添加超时任务
     if ((rv = nni_aio_schedule(aio, tcptran_ep_cancel, ep)) != 0) {
         nni_mtx_unlock(&ep->mtx);
         nni_aio_finish_error(aio, rv);
@@ -1233,7 +1238,7 @@ static nni_tran_dialer_ops tcptran_dialer_ops = {
     .d_setopt  = tcptran_dialer_setopt,
 };
 
-// 对于tcp的
+// 对于tcp相应的回调
 static nni_tran_listener_ops tcptran_listener_ops = {
     .l_init   = tcptran_listener_init,
     .l_fini   = tcptran_ep_fini,

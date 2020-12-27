@@ -255,12 +255,12 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
     l->l_ops = *tran->tran_listener;
 
     NNI_LIST_NODE_INIT(&l->l_node);
-    // 初始化链表
+    // 初始化pipe节点链表头
     NNI_LIST_INIT(&l->l_pipes, nni_pipe, p_ep_node);
 
-    // 用于accept aio
+    // 用于accept aio，那个相应的回调
     nni_aio_init(&l->l_acc_aio, listener_accept_cb, l);
-    // 用于超时的aio
+    // 用于listener 超时的aio
     nni_aio_init(&l->l_tmo_aio, listener_timer_cb, l);
 
     nni_mtx_lock(&listeners_lk);
@@ -273,6 +273,7 @@ nni_listener_create(nni_listener **lp, nni_sock *s, const char *url_str)
     listener_stats_init(l);
 #endif
 
+    // 调用的是tcptran_listener_init
     if ((rv != 0) || ((rv = l->l_ops.l_init(&l->l_data, url, l)) != 0) ||
         ((rv = nni_sock_add_listener(s, l)) != 0)) {
         nni_mtx_lock(&listeners_lk);
@@ -444,7 +445,9 @@ nni_listener_start(nni_listener *l, int flags)
     }
 
     // 绑定对应的端口和地址
-    // 对应tcp而言，tcptran_ep_bind调用的是
+    // 对应tcp而言，调用的是tcptran_ep_bind
+    // 最终调用到nng_stream_listener_listen
+    // nng_stream_listener_listen
     if ((rv = l->l_ops.l_bind(l->l_data)) != 0) {
         nni_listener_bump_error(l, rv);
         nni_atomic_flag_reset(&l->l_started);
