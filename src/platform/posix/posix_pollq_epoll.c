@@ -60,16 +60,19 @@ struct nni_posix_pollq {
     nni_list reapq; // 回收节点
 };
 
-// epoll实例
+// 注册fd对应的事件和状态
 struct nni_posix_pfd {
     nni_list_node    node;
     nni_posix_pollq *pq;
     int              fd;
     nni_posix_pfd_cb cb;
     void *           arg;
+    // 已经关闭
     bool             closed;
+    // 正在关闭
     bool             closing;
     bool             reap;
+    // 注册的事件
     unsigned         events;
     nni_mtx          mtx;
     nni_cv           cv;
@@ -171,16 +174,20 @@ nni_posix_pfd_set_cb(nni_posix_pfd *pfd, nni_posix_pfd_cb cb, void *arg)
     nni_mtx_unlock(&pfd->mtx);
 }
 
+// 关闭文件描述符
 void
 nni_posix_pfd_close(nni_posix_pfd *pfd)
 {
     nni_mtx_lock(&pfd->mtx);
+    // 正在关闭
     if (!pfd->closing) {
         nni_posix_pollq *  pq = pfd->pq;
         struct epoll_event ev; // Not actually used.
         pfd->closing = true;
 
+        // 关闭读写端
         (void) shutdown(pfd->fd, SHUT_RDWR);
+        // 从注册事件列表中删除
         (void) epoll_ctl(pq->epfd, EPOLL_CTL_DEL, pfd->fd, &ev);
     }
     nni_mtx_unlock(&pfd->mtx);
@@ -195,6 +202,7 @@ nni_posix_pfd_fini(nni_posix_pfd *pfd)
 
     // We have to synchronize with the pollq thread (unless we are
     // on that thread!)
+    // 确认不是本身线程调用
     NNI_ASSERT(!nni_thr_is_self(&pq->thr));
 
     uint64_t one = 1;
@@ -211,10 +219,12 @@ nni_posix_pfd_fini(nni_posix_pfd *pfd)
     // a hang waiting for the poller to reap the pfd in fini,
     // if it were possible for them to occur.  (Barring other
     // bugs, it isn't.)
+    // 直接使用eventfd来唤醒，关闭
     if (write(pq->evfd, &one, sizeof(one)) != sizeof(one)) {
         nni_panic("BUG! write to epoll fd incorrect!");
     }
 
+    // 一直等待文件描述符被关闭
     while (!pfd->closed) {
         nni_cv_wait(&pfd->cv);
     }
@@ -244,7 +254,7 @@ nni_posix_pollq_reap(nni_posix_pollq *pq)
     nni_mtx_unlock(&pq->mtx);
 }
 
-// io做到io循环
+// io线程
 static void
 nni_posix_poll_thr(void *arg)
 {
@@ -364,7 +374,6 @@ nni_posix_pollq_add_eventfd(nni_posix_pollq *pq)
     return (0);
 }
 
-// 初始化会创建epoll实例
 static int
 nni_posix_pollq_create(nni_posix_pollq *pq)
 {

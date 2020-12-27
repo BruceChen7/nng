@@ -12,190 +12,190 @@
 void
 nni_mtx_init(nni_mtx *mtx)
 {
-	nni_plat_mtx_init(mtx);
+    nni_plat_mtx_init(mtx);
 }
 
 void
 nni_mtx_fini(nni_mtx *mtx)
 {
-	nni_plat_mtx_fini(mtx);
+    nni_plat_mtx_fini(mtx);
 }
 
 void
 nni_mtx_lock(nni_mtx *mtx)
 {
-	nni_plat_mtx_lock(mtx);
+    nni_plat_mtx_lock(mtx);
 }
 
 void
 nni_mtx_unlock(nni_mtx *mtx)
 {
-	nni_plat_mtx_unlock(mtx);
+    nni_plat_mtx_unlock(mtx);
 }
 
 void
 nni_cv_init(nni_cv *cv, nni_mtx *mtx)
 {
-	nni_plat_cv_init(cv, mtx);
+    nni_plat_cv_init(cv, mtx);
 }
 
 void
 nni_cv_fini(nni_cv *cv)
 {
-	nni_plat_cv_fini(cv);
+    nni_plat_cv_fini(cv);
 }
 
 void
 nni_cv_wait(nni_cv *cv)
 {
-	nni_plat_cv_wait(cv);
+    nni_plat_cv_wait(cv);
 }
 
 int
 nni_cv_until(nni_cv *cv, nni_time until)
 {
-	// Some special cases for times.  Catching these here means that
-	// platforms can assume a valid time is presented to them.
-	if (until == NNI_TIME_NEVER) {
-		nni_plat_cv_wait(cv);
-		return (0);
-	}
-	if (until == NNI_TIME_ZERO) {
-		return (NNG_EAGAIN);
-	}
+    // Some special cases for times.  Catching these here means that
+    // platforms can assume a valid time is presented to them.
+    if (until == NNI_TIME_NEVER) {
+        nni_plat_cv_wait(cv);
+        return (0);
+    }
+    if (until == NNI_TIME_ZERO) {
+        return (NNG_EAGAIN);
+    }
 
-	return (nni_plat_cv_until(cv, until));
+    return (nni_plat_cv_until(cv, until));
 }
 
 void
 nni_cv_wake(nni_cv *cv)
 {
-	nni_plat_cv_wake(cv);
+    nni_plat_cv_wake(cv);
 }
 
 void
 nni_cv_wake1(nni_cv *cv)
 {
-	nni_plat_cv_wake1(cv);
+    nni_plat_cv_wake1(cv);
 }
 
 static void
 nni_thr_wrap(void *arg)
 {
-	nni_thr *thr = arg;
-	int      start;
+    nni_thr *thr = arg;
+    int      start;
 
-	nni_plat_mtx_lock(&thr->mtx);
+    nni_plat_mtx_lock(&thr->mtx);
     // 初始化时，等待通知
-	while (((start = thr->start) == 0) && (thr->stop == 0)) {
+    while (((start = thr->start) == 0) && (thr->stop == 0)) {
         // 在主线程通过调用
         // nni_thr_run(&tq->tq_threads[i].tqt_thread);
         // 来唤醒，此时start将为1
-		nni_plat_cv_wait(&thr->cv);
-	}
-	nni_plat_mtx_unlock(&thr->mtx);
-	if ((start) && (thr->fn != NULL)) {
+        nni_plat_cv_wait(&thr->cv);
+    }
+    nni_plat_mtx_unlock(&thr->mtx);
+    if ((start) && (thr->fn != NULL)) {
         // 启动主线程逻辑
-		thr->fn(thr->arg);
-	}
-	nni_plat_mtx_lock(&thr->mtx);
+        thr->fn(thr->arg);
+    }
+    nni_plat_mtx_lock(&thr->mtx);
     // 结束线程
-	thr->done = 1;
+    thr->done = 1;
     // 唤醒条件变量
-	nni_plat_cv_wake(&thr->cv);
-	nni_plat_mtx_unlock(&thr->mtx);
+    nni_plat_cv_wake(&thr->cv);
+    nni_plat_mtx_unlock(&thr->mtx);
 }
 
 int
 nni_thr_init(nni_thr *thr, nni_thr_func fn, void *arg)
 {
-	int rv;
+    int rv;
 
     // 线程上下文初始化列表
-	thr->done  = 0;
-	thr->start = 0;
-	thr->stop  = 0;
-	thr->fn    = fn;
-	thr->arg   = arg;
+    thr->done  = 0;
+    thr->start = 0;
+    thr->stop  = 0;
+    thr->fn    = fn;
+    thr->arg   = arg;
 
     // 初始化线程锁和条件变量
-	nni_plat_mtx_init(&thr->mtx);
-	nni_plat_cv_init(&thr->cv, &thr->mtx);
+    nni_plat_mtx_init(&thr->mtx);
+    nni_plat_cv_init(&thr->cv, &thr->mtx);
 
-	if (fn == NULL) {
-		thr->init = 1;
-		thr->done = 1;
-		return (0);
-	}
+    if (fn == NULL) {
+        thr->init = 1;
+        thr->done = 1;
+        return (0);
+    }
     // 创建线程
-	if ((rv = nni_plat_thr_init(&thr->thr, nni_thr_wrap, thr)) != 0) {
-		thr->done = 1;
-		nni_plat_cv_fini(&thr->cv);
-		nni_plat_mtx_fini(&thr->mtx);
-		return (rv);
-	}
-	thr->init = 1;
-	return (0);
+    if ((rv = nni_plat_thr_init(&thr->thr, nni_thr_wrap, thr)) != 0) {
+        thr->done = 1;
+        nni_plat_cv_fini(&thr->cv);
+        nni_plat_mtx_fini(&thr->mtx);
+        return (rv);
+    }
+    thr->init = 1;
+    return (0);
 }
 
 void
 nni_thr_run(nni_thr *thr)
 {
     // 设置start为开始
-	nni_plat_mtx_lock(&thr->mtx);
-	thr->start = 1;
-	nni_plat_cv_wake(&thr->cv);
-	nni_plat_mtx_unlock(&thr->mtx);
+    nni_plat_mtx_lock(&thr->mtx);
+    thr->start = 1;
+    nni_plat_cv_wake(&thr->cv);
+    nni_plat_mtx_unlock(&thr->mtx);
 }
 
 void
 nni_thr_wait(nni_thr *thr)
 {
-	if (!thr->init) {
-		return;
-	}
-	nni_plat_mtx_lock(&thr->mtx);
-	thr->stop = 1;
-	nni_plat_cv_wake(&thr->cv);
-	while (!thr->done) {
-		nni_plat_cv_wait(&thr->cv);
-	}
-	nni_plat_mtx_unlock(&thr->mtx);
+    if (!thr->init) {
+        return;
+    }
+    nni_plat_mtx_lock(&thr->mtx);
+    thr->stop = 1;
+    nni_plat_cv_wake(&thr->cv);
+    while (!thr->done) {
+        nni_plat_cv_wait(&thr->cv);
+    }
+    nni_plat_mtx_unlock(&thr->mtx);
 }
 
 void
 nni_thr_fini(nni_thr *thr)
 {
-	if (!thr->init) {
-		return;
-	}
-	nni_plat_mtx_lock(&thr->mtx);
-	thr->stop = 1;
-	nni_plat_cv_wake(&thr->cv);
-	while (!thr->done) {
-		nni_plat_cv_wait(&thr->cv);
-	}
-	nni_plat_mtx_unlock(&thr->mtx);
-	if (thr->fn != NULL) {
-		nni_plat_thr_fini(&thr->thr);
-	}
+    if (!thr->init) {
+        return;
+    }
+    nni_plat_mtx_lock(&thr->mtx);
+    thr->stop = 1;
+    nni_plat_cv_wake(&thr->cv);
+    while (!thr->done) {
+        nni_plat_cv_wait(&thr->cv);
+    }
+    nni_plat_mtx_unlock(&thr->mtx);
+    if (thr->fn != NULL) {
+        nni_plat_thr_fini(&thr->thr);
+    }
 
-	nni_plat_cv_fini(&thr->cv);
-	nni_plat_mtx_fini(&thr->mtx);
-	thr->init = 0;
+    nni_plat_cv_fini(&thr->cv);
+    nni_plat_mtx_fini(&thr->mtx);
+    thr->init = 0;
 }
 
 bool
 nni_thr_is_self(nni_thr *thr)
 {
-	if (!thr->init) {
-		return (false);
-	}
-	return (nni_plat_thr_is_self(&thr->thr));
+    if (!thr->init) {
+        return (false);
+    }
+    return (nni_plat_thr_is_self(&thr->thr));
 }
 
 void
 nni_thr_set_name(nni_thr *thr, const char *name)
 {
-	nni_plat_thr_set_name(&thr->thr, name);
+    nni_plat_thr_set_name(&thr->thr, name);
 }

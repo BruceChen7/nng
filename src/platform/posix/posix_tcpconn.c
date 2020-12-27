@@ -109,6 +109,7 @@ tcp_doread(nni_tcp_conn *c)
         return;
     }
 
+    // 从队列中取出一个aio
     while ((aio = nni_list_first(&c->readq)) != NULL) {
         unsigned     i;
         int          n;
@@ -123,6 +124,7 @@ tcp_doread(nni_tcp_conn *c)
             nni_aio_finish_error(aio, NNG_EINVAL);
             continue;
         }
+        // 初始化iovec
         for (niov = 0, i = 0; i < naiov; i++) {
             if (aiov[i].iov_len != 0) {
                 iovec[niov].iov_len  = aiov[i].iov_len;
@@ -131,13 +133,16 @@ tcp_doread(nni_tcp_conn *c)
             }
         }
 
+        // 使用readv
         if ((n = readv(fd, iovec, niov)) < 0) {
             switch (errno) {
             case EINTR:
                 continue;
             case EAGAIN:
+                // 从fd中，这次读完了
                 return;
             default:
+                // 出错了
                 nni_aio_list_remove(aio);
                 nni_aio_finish_error(
                     aio, nni_plat_errno(errno));
@@ -145,6 +150,7 @@ tcp_doread(nni_tcp_conn *c)
             }
         }
 
+        // 这一次对端关闭
         if (n == 0) {
             // No bytes indicates a closed descriptor.
             // This implicitly completes this (all!) aio.
@@ -239,7 +245,9 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
         return;
     }
     nni_mtx_lock(&c->mtx);
+    // 如果读事件
     if ((events & NNI_POLL_IN) != 0) {
+        // 首先处理事件
         tcp_doread(c);
     }
     if ((events & NNI_POLL_OUT) != 0) {
@@ -253,6 +261,7 @@ tcp_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
         events |= NNI_POLL_IN;
     }
     if ((!c->closed) && (events != 0)) {
+        // 再一次注册相关事件
         nni_posix_pfd_arm(pfd, events);
     }
     nni_mtx_unlock(&c->mtx);

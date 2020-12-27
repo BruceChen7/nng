@@ -97,7 +97,7 @@ tcp_listener_doaccept(nni_tcp_listener *l)
         nni_posix_pfd *pfd;
         nni_tcp_conn * c;
 
-        // 获取listen fi
+        // 获取listen fd
         fd = nni_posix_pfd_fd(l->pfd);
 
 #ifdef NNG_USE_ACCEPT4
@@ -163,7 +163,7 @@ tcp_listener_doaccept(nni_tcp_listener *l)
         ka = l->keepalive ? 1 : 0;
         nd = l->nodelay ? 1 : 0;
         nni_aio_list_remove(aio);
-        // 设置回调函数和tcp keep alive
+        // 设置读写事件回调函数和tcp keep alive
         nni_posix_tcp_start(c, nd, ka);
         // 设置aio的结果为添加的connection
         nni_aio_set_output(aio, 0, c);
@@ -178,6 +178,7 @@ tcp_listener_cb(nni_posix_pfd *pfd, unsigned events, void *arg)
     NNI_ARG_UNUSED(pfd);
 
     nni_mtx_lock(&l->mtx);
+    // invalid事件
     if ((events & NNI_POLL_INVAL) != 0) {
         tcp_listener_doclose(l);
         nni_mtx_unlock(&l->mtx);
@@ -334,6 +335,7 @@ nni_tcp_listener_accept(nni_tcp_listener *l, nni_aio *aio)
     // 加入到accpet queue
     nni_aio_list_append(&l->acceptq, aio);
     if (nni_list_first(&l->acceptq) == aio) {
+        // 确实进行accept
         tcp_listener_doaccept(l);
     }
     nni_mtx_unlock(&l->mtx);

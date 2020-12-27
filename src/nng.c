@@ -497,8 +497,8 @@ nng_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
     nni_sock *    s;
     nni_listener *l;
 
-    // 在全局列表中找到对应的nng_socket
-    // 没有找到直接返回
+    // 在全局hash列表中找到对应的nng_socket
+    // 没有找到，说明没有通过nng_rep0_open来创建，直接返回
     if ((rv = nni_sock_find(&s, sid.id)) != 0) {
         return (rv);
     }
@@ -520,6 +520,7 @@ nng_listen(nng_socket sid, const char *addr, nng_listener *lp, int flags)
         lid.id = nni_listener_id(l);
         *lp    = lid;
     }
+    // 直接释放这个listener，为啥要释放？
     nni_listener_rele(l);
     nni_sock_rele(s);
     return (rv);

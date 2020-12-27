@@ -228,6 +228,7 @@ nng_stream_listener_listen(nng_stream_listener *l)
 void
 nng_stream_listener_accept(nng_stream_listener *l, nng_aio *aio)
 {
+    // 调用tcp_listener_accept
     l->sl_accept(l, aio);
 }
 

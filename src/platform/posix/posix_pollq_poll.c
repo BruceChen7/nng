@@ -113,6 +113,7 @@ nni_posix_pfd_init(nni_posix_pfd **pfdp, int fd)
 	return (0);
 }
 
+// 设置相关事件回调
 void
 nni_posix_pfd_set_cb(nni_posix_pfd *pfd, nni_posix_pfd_cb cb, void *arg)
 {

@@ -760,15 +760,18 @@ static void
 tcptran_timer_cb(void *arg)
 {
     tcptran_ep *ep = arg;
+    // io操作的接口正常
     if (nni_aio_result(ep->timeaio) == 0) {
         nng_stream_listener_accept(ep->listener, ep->connaio);
     }
 }
 
+// 这个回调只是创建listen fd后，还未accept
 static void
 tcptran_accept_cb(void *arg)
 {
     tcptran_ep *  ep  = arg;
+    // 读aio操作已经分配好的
     nni_aio *     aio = ep->connaio;
     tcptran_pipe *p;
     int           rv;
@@ -797,6 +800,7 @@ tcptran_accept_cb(void *arg)
     }
     // 开始协商
     tcptran_pipe_start(p, conn, ep);
+    // 这里的
     nng_stream_listener_accept(ep->listener, ep->connaio);
     nni_mtx_unlock(&ep->mtx);
     return;
@@ -812,11 +816,13 @@ error:
 
     case NNG_ENOMEM:
     case NNG_ENOFILES:
+        // 10 ms后重试
         nng_sleep_aio(10, ep->timeaio);
         break;
 
     default:
         if (!ep->closed) {
+            // 再次重试
             nng_stream_listener_accept(ep->listener, ep->connaio);
         }
         break;
@@ -967,7 +973,9 @@ tcptran_listener_init(void **lp, nng_url *url, nni_listener *nlistener)
 
     // 将ep->connaio设置为tcptran_accept_cb
     if (((rv = nni_aio_alloc(&ep->connaio, tcptran_accept_cb, ep)) != 0) ||
+        // 设置超时aio的回调
         ((rv = nni_aio_alloc(&ep->timeaio, tcptran_timer_cb, ep)) != 0) ||
+        // 设置url
         ((rv = nng_stream_listener_alloc_url(&ep->listener, url)) != 0)) {
         tcptran_ep_fini(ep);
         return (rv);

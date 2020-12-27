@@ -218,6 +218,7 @@ nni_posix_pollq_reap(nni_posix_pollq *pq)
     nni_posix_pfd *pf;
     nni_mtx_lock(&pq->mtx);
     while ((pf = nni_list_first(&pq->reapq)) != NULL) {
+        // 移除相关节点
         nni_list_remove(&pq->reapq, pf);
         nni_cv_wake(&pf->cv);
     }
