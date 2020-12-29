@@ -76,6 +76,7 @@ nng_strfree(char *s)
     nni_strfree(s);
 }
 
+// 从协议socket中获取数据
 int
 nng_recv(nng_socket s, void *buf, size_t *szp, int flags)
 {
@@ -88,6 +89,7 @@ nng_recv(nng_socket s, void *buf, size_t *szp, int flags)
         return (rv);
     }
     if (!(flags & NNG_FLAG_ALLOC)) {
+        // 至多对应buffer长度的消息
         memcpy(buf, nng_msg_body(msg),
             *szp > nng_msg_len(msg) ? nng_msg_len(msg) : *szp);
         *szp = nng_msg_len(msg);
@@ -129,9 +131,11 @@ nng_recvmsg(nng_socket s, nng_msg **msgp, int flags)
     if (flags & NNG_FLAG_NONBLOCK) {
         nng_aio_set_timeout(ap, NNG_DURATION_ZERO);
     } else {
+        // 设置aio的超时时间
         nng_aio_set_timeout(ap, NNG_DURATION_DEFAULT);
     }
 
+    // 从socket读取，将结果放到了apz中
     nng_recv_aio(s, ap);
     nng_aio_wait(ap);
 
@@ -194,6 +198,7 @@ nng_sendmsg(nng_socket s, nng_msg *msg, int flags)
     // still done asynchronously, and the calling thread loses context.
     if ((rv == NNG_ETIMEDOUT) &&
         ((flags & NNG_FLAG_NONBLOCK) == NNG_FLAG_NONBLOCK)) {
+        // 没有啥可读的
         rv = NNG_EAGAIN;
     }
 
@@ -206,6 +211,7 @@ nng_recv_aio(nng_socket s, nng_aio *aio)
     nni_sock *sock;
     int       rv;
 
+    // 找到对应的协议socket
     if ((rv = nni_sock_find(&sock, s.id)) != 0) {
         if (nni_aio_begin(aio) == 0) {
             nni_aio_finish_error(aio, rv);

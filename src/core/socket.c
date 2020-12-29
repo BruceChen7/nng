@@ -8,6 +8,7 @@
 // found online at https://opensource.org/licenses/MIT.
 //
 
+#include "core/defs.h"
 #include "core/nng_impl.h"
 #include "sockimpl.h"
 
@@ -908,7 +909,9 @@ nni_sock_send(nni_sock *sock, nni_aio *aio)
 void
 nni_sock_recv(nni_sock *sock, nni_aio *aio)
 {
+    // 设置超时时间
     nni_aio_normalize_timeout(aio, sock->s_rcvtimeo);
+    // 找到对应的协议实现
     sock->s_sock_ops.sock_recv(sock->s_data, aio);
 }
 
@@ -1649,9 +1652,7 @@ nni_dialer_reap(nni_dialer *d)
     nni_dialer_destroy(d);
 }
 
-// 对于服务端listern会创建pipe
-// 给listen调节子添加新pipe
-// tpipe时给传输层用的参数nni_pipe->p_tran_data
+// 对于服务端accept后会创建pipe，也就是accept后的new fd对应 connection
 void
 nni_listener_add_pipe(nni_listener *l, void *tpipe)
 {
@@ -1668,7 +1669,6 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         return;
     }
 
-    // listen pipea管道添加
     nni_list_append(&l->l_pipes, p);
     // 添加active的pipes
     nni_list_append(&s->s_pipes, p);
@@ -1691,7 +1691,9 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         nni_pipe_rele(p);
         return;
     }
+
     // 传入的应该是各个协议实现对应的pipe
+    // 调用应用层协议来读取数据
     if (p->p_proto_ops.pipe_start(p->p_proto_data) != 0) {
         nni_mtx_unlock(&s->s_mx);
 #ifdef NNG_ENABLE_STATS
@@ -1706,6 +1708,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
 #ifdef NNG_ENABLE_STATS
     nni_stat_register(&p->st_root);
 #endif
+    // 执行ADD事件
     nni_pipe_run_cb(p, NNG_PIPE_EV_ADD_POST);
     nni_pipe_rele(p);
 }

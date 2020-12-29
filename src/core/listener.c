@@ -383,7 +383,7 @@ listener_timer_cb(void *arg)
     }
 }
 
-// listen 后的回调
+// accept后的回调
 static void
 listener_accept_cb(void *arg)
 {
@@ -397,7 +397,7 @@ listener_accept_cb(void *arg)
 #ifdef NNG_ENABLE_STATS
         nni_stat_inc(&l->st_accept, 1);
 #endif
-        // 创建listener
+        // 创建pipe，也就是accept后的connection
         nni_listener_add_pipe(l, nni_aio_get_output(aio, 0));
         // 开始accept
         listener_accept_start(l);
@@ -429,6 +429,8 @@ static void
 listener_accept_start(nni_listener *l)
 {
     // Call with the listener lock held.
+    // 此时l->l_acc_aio已经被初始化了
+    // 在nni_aio_init中被初始化
     l->l_ops.l_accept(l->l_data, &l->l_acc_aio);
 }
 

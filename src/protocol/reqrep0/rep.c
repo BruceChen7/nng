@@ -244,7 +244,7 @@ rep0_sock_init(void *arg, nni_sock *sock)
     NNI_LIST_INIT(&s->recvq, rep0_ctx, rqnode);
     NNI_LIST_INIT(&s->recvpipes, rep0_pipe, rnode);
     nni_atomic_init(&s->ttl);
-    // 设置ttl位8
+    // 设置ttl为8
     nni_atomic_set(&s->ttl, 8);
 
     (void) rep0_ctx_init(&s->ctx, s);
@@ -313,6 +313,7 @@ rep0_pipe_init(void *arg, nni_pipe *pipe, void *s)
     return (0);
 }
 
+// tcp层开也就是accept后，开始调用该函数，开始从管道中接收数据
 static int
 rep0_pipe_start(void *arg)
 {
@@ -327,6 +328,7 @@ rep0_pipe_start(void *arg)
     }
 
     nni_mtx_lock(&s->lk);
+    // 在pipe全局哈希表
     rv = nni_id_set(&s->pipes, nni_pipe_id(p->pipe), p);
     nni_mtx_unlock(&s->lk);
     if (rv != 0) {
@@ -334,6 +336,8 @@ rep0_pipe_start(void *arg)
     }
     // By definition, we have not received a request yet on this pipe,
     // so it cannot cause us to become writable.
+    // 开始从connection 中接收数据, 也就是传输层接收数据
+    // 对应tcp为tcptran_pipe_recv
     nni_pipe_recv(p->pipe, &p->aio_recv);
     return (0);
 }
@@ -484,11 +488,14 @@ rep0_ctx_recv(void *arg, nni_aio *aio)
     if (nni_list_empty(&s->recvpipes)) {
         nni_pollable_clear(&s->readable);
     }
+
+    // 从传输层获取协议数据
     nni_pipe_recv(p->pipe, &p->aio_recv);
     if ((ctx == &s->ctx) && !p->busy) {
         nni_pollable_raise(&s->writable);
     }
 
+    // 获取消息
     len = nni_msg_header_len(msg);
     memcpy(ctx->btrace, nni_msg_header(msg), len);
     ctx->btrace_len = len;
@@ -497,6 +504,7 @@ rep0_ctx_recv(void *arg, nni_aio *aio)
 
     nni_msg_header_clear(msg);
     nni_aio_set_msg(aio, msg);
+    // 执行回调
     nni_aio_finish(aio, 0, nni_msg_len(msg));
 }
 
@@ -520,9 +528,11 @@ rep0_pipe_recv_cb(void *arg)
         return;
     }
 
+    // 从aio中获取消息
     msg = nni_aio_get_msg(&p->aio_recv);
     ttl = nni_atomic_get(&s->ttl);
 
+    // 设置消息的pip_id
     nni_msg_set_pipe(msg, p->id);
 
     // Move backtrace from body to header
@@ -538,6 +548,7 @@ rep0_pipe_recv_cb(void *arg)
             goto drop;
         }
         hops++;
+        // 消息长度不对
         if (nni_msg_len(msg) < 4) {
             // Peer is speaking garbage. Kick it.
             nni_msg_free(msg);
@@ -545,8 +556,11 @@ rep0_pipe_recv_cb(void *arg)
             nni_pipe_close(p->pipe);
             return;
         }
+        // 消息body
         body = nni_msg_body(msg);
+        // 最后一个
         end  = ((body[0] & 0x80u) != 0);
+        // 将头是4个字节拷贝到header中
         if (nni_msg_header_append(msg, body, 4) != 0) {
             // Out of memory, so drop it.
             goto drop;
@@ -557,6 +571,7 @@ rep0_pipe_recv_cb(void *arg)
         }
     }
 
+    // 获取消息头长度
     len = nni_msg_header_len(msg);
 
     nni_mtx_lock(&s->lk);
@@ -569,6 +584,7 @@ rep0_pipe_recv_cb(void *arg)
         return;
     }
 
+    // 没有等待
     if ((ctx = nni_list_first(&s->recvq)) == NULL) {
         // No one waiting to receive yet, holding pattern.
         nni_list_append(&s->recvpipes, p);
@@ -577,6 +593,8 @@ rep0_pipe_recv_cb(void *arg)
         return;
     }
 
+    // 将ctx移除
+    // 并初始化
     nni_list_remove(&s->recvq, ctx);
     aio       = ctx->raio;
     ctx->raio = NULL;
@@ -589,12 +607,14 @@ rep0_pipe_recv_cb(void *arg)
     nni_pipe_recv(p->pipe, &p->aio_recv);
 
     ctx->btrace_len = len;
+    // 拷贝消息头
     memcpy(ctx->btrace, nni_msg_header(msg), len);
     nni_msg_header_clear(msg);
     ctx->pipe_id = p->id;
 
     nni_mtx_unlock(&s->lk);
 
+    // 设置消息
     nni_aio_set_msg(aio, msg);
     nni_aio_finish_sync(aio, 0, nni_msg_len(msg));
     return;

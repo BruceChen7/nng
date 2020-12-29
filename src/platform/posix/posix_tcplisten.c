@@ -162,6 +162,7 @@ tcp_listener_doaccept(nni_tcp_listener *l)
 
         ka = l->keepalive ? 1 : 0;
         nd = l->nodelay ? 1 : 0;
+        // 移除该列表
         nni_aio_list_remove(aio);
         // 设置读写事件回调函数和tcp keep alive
         nni_posix_tcp_start(c, nd, ka);

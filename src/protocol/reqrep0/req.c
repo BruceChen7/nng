@@ -182,6 +182,7 @@ req0_pipe_init(void *arg, nni_pipe *pipe, void *s)
 {
     req0_pipe *p = arg;
 
+    // 初始化aio操作的回调
     nni_aio_init(&p->aio_recv, req0_recv_cb, p);
     nni_aio_init(&p->aio_send, req0_send_cb, p);
     NNI_LIST_NODE_INIT(&p->node);
@@ -211,6 +212,7 @@ req0_pipe_start(void *arg)
     req0_run_send_queue(s, NULL);
     nni_mtx_unlock(&s->mtx);
 
+    // 开始从tcp层接收数据
     nni_pipe_recv(p->pipe, &p->aio_recv);
     return (0);
 }
@@ -309,6 +311,7 @@ req0_send_cb(void *arg)
     }
 }
 
+// 从传输层接收到数据后，执行该回调
 static void
 req0_recv_cb(void *arg)
 {
@@ -319,13 +322,18 @@ req0_recv_cb(void *arg)
     nni_aio *  aio;
     uint32_t   id;
 
+    // 执行读操作
+    // 读失败，关闭该pipe
     if (nni_aio_result(&p->aio_recv) != 0) {
         nni_pipe_close(p->pipe);
         return;
     }
 
+    // 获取消息
     msg = nni_aio_get_msg(&p->aio_recv);
+    // 清空
     nni_aio_set_msg(&p->aio_recv, NULL);
+    // 设置消息的pip id
     nni_msg_set_pipe(msg, nni_pipe_id(p->pipe));
 
     // We yank 4 bytes from front of body, and move them to the header.
@@ -333,6 +341,7 @@ req0_recv_cb(void *arg)
         // Malformed message.
         goto malformed;
     }
+    // 获取消息id号
     id = nni_msg_trim_u32(msg);
 
     // Schedule another receive while we are processing this.
@@ -342,6 +351,7 @@ req0_recv_cb(void *arg)
     nni_pipe_recv(p->pipe, &p->aio_recv);
 
     // Look for a context to receive it.
+    // 获取请求上下文，如果请求非法
     if (((ctx = nni_id_get(&s->requests, id)) == NULL) ||
         (ctx->send_aio != NULL) || (ctx->rep_msg != NULL)) {
         nni_mtx_unlock(&s->mtx);
@@ -354,6 +364,7 @@ req0_recv_cb(void *arg)
 
     // We have our match, so we can remove this.
     nni_list_node_remove(&ctx->send_node);
+    // 从请求中直接删除
     nni_id_remove(&s->requests, id);
     ctx->request_id = 0;
     if (ctx->req_msg != NULL) {
@@ -369,6 +380,7 @@ req0_recv_cb(void *arg)
         nni_aio_finish_sync(aio, 0, nni_msg_len(msg));
     } else {
         // No AIO, so stash msg.  Receive will pick it up later.
+        // 设置响应消息
         ctx->rep_msg = msg;
         if (ctx == &s->master) {
             nni_pollable_raise(&s->readable);
@@ -589,10 +601,12 @@ req0_ctx_recv(void *arg, nni_aio *aio)
     req0_sock *s   = ctx->sock;
     nni_msg *  msg;
 
+    // 清空除了task的其余数据，每一个aio开始操作都要这么做
     if (nni_aio_begin(aio) != 0) {
         return;
     }
     nni_mtx_lock(&s->mtx);
+    // 请求异常
     if ((ctx->recv_aio != NULL) ||
         ((ctx->req_msg == NULL) && (ctx->rep_msg == NULL))) {
         // We have already got a pending receive or have not
@@ -610,8 +624,10 @@ req0_ctx_recv(void *arg, nni_aio *aio)
         return;
     }
 
+    // 没有获取消息
     if ((msg = ctx->rep_msg) == NULL) {
         int rv;
+        // 设置超时操作
         rv = nni_aio_schedule(aio, req0_ctx_cancel_recv, ctx);
         if (rv != 0) {
             nni_mtx_unlock(&s->mtx);
@@ -623,6 +639,7 @@ req0_ctx_recv(void *arg, nni_aio *aio)
         return;
     }
 
+    // 清空
     ctx->rep_msg = NULL;
 
     // We have got a message to pass up, yay!
@@ -737,6 +754,7 @@ req0_sock_send(void *arg, nni_aio *aio)
     req0_ctx_send(&s->master, aio);
 }
 
+// 应用层recv将会调用该函数来接收消息
 static void
 req0_sock_recv(void *arg, nni_aio *aio)
 {
@@ -890,7 +908,7 @@ static nni_proto req0_proto = {
     .proto_sock_ops = &req0_sock_ops,
     // pip选项
     .proto_pipe_ops = &req0_pipe_ops,
-    // 上下文选项
+    // 上下文初始化
     .proto_ctx_ops  = &req0_ctx_ops,
 };
 

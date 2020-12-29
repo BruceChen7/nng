@@ -318,6 +318,7 @@ tcp_send(void *arg, nni_aio *aio)
     nni_mtx_unlock(&c->mtx);
 }
 
+// 真正从tcp开始读
 static void
 tcp_recv(void *arg, nni_aio *aio)
 {
@@ -334,6 +335,7 @@ tcp_recv(void *arg, nni_aio *aio)
         nni_aio_finish_error(aio, rv);
         return;
     }
+    // 添加到readq队列中
     nni_aio_list_append(&c->readq, aio);
 
     // If we are only job on the list, go ahead and try to do an
@@ -341,6 +343,7 @@ tcp_recv(void *arg, nni_aio *aio)
     // many cases.  We also need not arm a list if it was already
     // armed.
     if (nni_list_first(&c->readq) == aio) {
+        // 真正开始读
         tcp_doread(c);
         // If we are still the first thing on the list, that
         // means we didn't finish the job, so arm the poller to

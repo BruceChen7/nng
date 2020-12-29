@@ -547,6 +547,7 @@ tcptran_pipe_recv_cancel(nni_aio *aio, void *arg, int rv)
     nni_aio_finish_error(aio, rv);
 }
 
+// 真正开始启动从连接中读取数据
 static void
 tcptran_pipe_recv_start(tcptran_pipe *p)
 {
@@ -570,11 +571,15 @@ tcptran_pipe_recv_start(tcptran_pipe *p)
     rxaio       = p->rxaio;
     iov.iov_buf = p->rxlen;
     iov.iov_len = sizeof(p->rxlen);
+    // 设置读buffer
     nni_aio_set_iov(rxaio, 1, &iov);
 
+    // 开始读
+    // tcptran_pipe_recv
     nng_stream_recv(p->conn, rxaio);
 }
 
+// 从传输层获取协议数据
 static void
 tcptran_pipe_recv(void *arg, nni_aio *aio)
 {
@@ -585,6 +590,7 @@ tcptran_pipe_recv(void *arg, nni_aio *aio)
         return;
     }
     nni_mtx_lock(&p->mtx);
+    // 设置超时任务
     if ((rv = nni_aio_schedule(aio, tcptran_pipe_recv_cancel, p)) != 0) {
         nni_mtx_unlock(&p->mtx);
         nni_aio_finish_error(aio, rv);
@@ -592,7 +598,9 @@ tcptran_pipe_recv(void *arg, nni_aio *aio)
     }
 
     nni_list_append(&p->recvq, aio);
+    // 只有这一个，立即开始读
     if (nni_list_first(&p->recvq) == aio) {
+        // 开始读
         tcptran_pipe_recv_start(p);
     }
     nni_mtx_unlock(&p->mtx);
@@ -1111,6 +1119,9 @@ tcptran_ep_bind(void *arg)
 static void
 tcptran_ep_accept(void *arg, nni_aio *aio)
 {
+    // 传入的aio，是nni_listener->l_acc_aio
+    // 该acc_aio吧绑定的回调是
+    // nni_aio_init(&l->l_acc_aio, listener_accept_cb, l);
     tcptran_ep *ep = arg;
     int         rv;
 
@@ -1129,13 +1140,14 @@ tcptran_ep_accept(void *arg, nni_aio *aio)
         nni_aio_finish_error(aio, NNG_EBUSY);
         return;
     }
-    // 添加超时任务
+    // 添加aio后超时的任务超时任务
     if ((rv = nni_aio_schedule(aio, tcptran_ep_cancel, ep)) != 0) {
         nni_mtx_unlock(&ep->mtx);
         nni_aio_finish_error(aio, rv);
         return;
     }
     ep->useraio = aio;
+    // 该listen fd首次启动
     if (!ep->started) {
         ep->started = true;
         nng_stream_listener_accept(ep->listener, ep->connaio);
@@ -1279,6 +1291,7 @@ static nni_tran tcp6_tran = {
     .tran_fini     = tcptran_fini,
 };
 
+// 注册相关实现
 int
 nng_tcp_register(void)
 {

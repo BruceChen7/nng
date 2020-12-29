@@ -267,7 +267,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
     p->p_size       = sz;
     p->p_proto_data = p + 1; // 这里的 p + 1，协议层的pipe
     p->p_tran_ops   = *tran->tran_pipe;  // 传输层通道
-    p->p_tran_data  = tdata;
+    p->p_tran_data  = tdata;  // 传输层协议
     p->p_proto_ops  = *pops;
     p->p_sock       = sock;
     p->p_closed     = false;
