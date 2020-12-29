@@ -31,8 +31,8 @@
 #define SERVER "server"
 #define DATECMD 1
 
-#define PUT64(ptr, u)                                        \
-    do {                                                 \
+#define PUT64(ptr, u)                                \
+    do {                                             \
         (ptr)[0] = (uint8_t)(((uint64_t)(u)) >> 56); \
         (ptr)[1] = (uint8_t)(((uint64_t)(u)) >> 48); \
         (ptr)[2] = (uint8_t)(((uint64_t)(u)) >> 40); \
@@ -43,7 +43,7 @@
         (ptr)[7] = (uint8_t)((uint64_t)(u));         \
     } while (0)
 
-#define GET64(ptr, v)                                 \
+#define GET64(ptr, v)                             \
     v = (((uint64_t)((uint8_t)(ptr)[0])) << 56) + \
         (((uint64_t)((uint8_t)(ptr)[1])) << 48) + \
         (((uint64_t)((uint8_t)(ptr)[2])) << 40) + \
