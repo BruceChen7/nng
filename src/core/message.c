@@ -474,6 +474,7 @@ nni_msg_body(nni_msg *m)
 size_t
 nni_msg_len(const nni_msg *m)
 {
+    // 获取消息body长度
     return (m->m_body.ch_len);
 }
 

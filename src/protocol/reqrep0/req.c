@@ -199,7 +199,7 @@ req0_pipe_start(void *arg)
     req0_pipe *p = arg;
     req0_sock *s = p->req;
 
-    // 查看对方的pip是否存在
+    // 查看对方的pip是否合理
     if (nni_pipe_peer(p->pipe) != NNG_REQ0_PEER) {
         return (NNG_EPROTO);
     }

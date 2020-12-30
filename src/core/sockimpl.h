@@ -72,6 +72,7 @@ struct nni_listener {
     bool                  l_closed;  // full shutdown
     bool                  l_closing; // close started (shutdown)
     nni_atomic_flag       l_started;
+    // connnection list
     nni_list              l_pipes;
     nni_aio               l_acc_aio;
     nni_aio               l_tmo_aio;

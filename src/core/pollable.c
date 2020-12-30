@@ -70,7 +70,7 @@ nni_pollable_raise(nni_pollable *p)
     if (!nni_atomic_swap_bool(&p->p_raised, true)) {
         uint64_t fds;
         if ((fds = nni_atomic_get64(&p->p_fds)) != (uint64_t) -1) {
-            // 用来唤醒该poll fd
+            // 用来唤醒该eventfd可写
             nni_plat_pipe_raise(WFD(fds));
         }
     }
@@ -104,10 +104,14 @@ nni_pollable_getfd(nni_pollable *p, int *fdp)
         int      rv;
         uint64_t fds;
 
+        // 不是初始化状态值
         if ((fds = nni_atomic_get64(&p->p_fds)) != (uint64_t) -1) {
+            // readfd
             *fdp = RFD(fds);
             return (0);
         }
+        // 创建event fd，分配赋值给readfd和wfd
+        // 对于linux而言，write event fd 和 read event fd相同
         if ((rv = nni_plat_pipe_open(&wfd, &rfd)) != 0) {
             return (rv);
         }

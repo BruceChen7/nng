@@ -89,7 +89,7 @@ nng_recv(nng_socket s, void *buf, size_t *szp, int flags)
         return (rv);
     }
     if (!(flags & NNG_FLAG_ALLOC)) {
-        // 至多对应buffer长度的消息
+        // 直接将body拷贝到buffer
         memcpy(buf, nng_msg_body(msg),
             *szp > nng_msg_len(msg) ? nng_msg_len(msg) : *szp);
         *szp = nng_msg_len(msg);
@@ -125,18 +125,20 @@ nng_recvmsg(nng_socket s, nng_msg **msgp, int flags)
     int      rv;
     nng_aio *ap;
 
+    // 分配aio handle
     if ((rv = nng_aio_alloc(&ap, NULL, NULL)) != 0) {
         return (rv);
     }
     if (flags & NNG_FLAG_NONBLOCK) {
         nng_aio_set_timeout(ap, NNG_DURATION_ZERO);
     } else {
-        // 设置aio的超时时间
+        // 设置aio操作的超时时间
         nng_aio_set_timeout(ap, NNG_DURATION_DEFAULT);
     }
 
     // 从socket读取，将结果放到了apz中
     nng_recv_aio(s, ap);
+    // 等待aio完成
     nng_aio_wait(ap);
 
     if ((rv = nng_aio_result(ap)) == 0) {
@@ -211,7 +213,7 @@ nng_recv_aio(nng_socket s, nng_aio *aio)
     nni_sock *sock;
     int       rv;
 
-    // 找到对应的协议socket
+    // 找到对应的socket
     if ((rv = nni_sock_find(&sock, s.id)) != 0) {
         if (nni_aio_begin(aio) == 0) {
             nni_aio_finish_error(aio, rv);

@@ -305,7 +305,7 @@ nni_aio_begin(nni_aio *aio)
         nni_task_dispatch(&aio->a_task);
         return (NNG_ECANCELED);
     }
-    // 初始化一次aio操作
+    // 初始化一次aio操作结果
     aio->a_result     = 0;
     aio->a_count      = 0;
     aio->a_cancel_fn  = NULL;
@@ -325,6 +325,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
     if (!aio->a_sleep) {
         // Convert the relative timeout to an absolute timeout.
         switch (aio->a_timeout) {
+        // 立即终止
         case NNG_DURATION_ZERO:
             nni_task_abort(&aio->a_task);
             return (NNG_ETIMEDOUT);
@@ -333,6 +334,7 @@ nni_aio_schedule(nni_aio *aio, nni_aio_cancel_fn cancel, void *data)
             aio->a_expire = NNI_TIME_NEVER;
             break;
         default:
+            // 当前时间 + 超时时间
             aio->a_expire = nni_clock() + aio->a_timeout;
             break;
         }

@@ -59,8 +59,9 @@ nni_taskq_thread(void *self)
 
             nni_mtx_lock(&task->task_mtx);
             task->task_busy--;
-            // 没有处理的任务了，等待新的任务
+
             if (task->task_busy == 0) {
+                // task做完了，通知等待的线程
                 nni_cv_wake(&task->task_cv);
             }
             nni_mtx_unlock(&task->task_mtx);
@@ -160,6 +161,7 @@ nni_task_exec(nni_task *task)
     }
     nni_mtx_unlock(&task->task_mtx);
 
+    // 执行任务回调
     if (task->task_cb != NULL) {
         task->task_cb(task->task_arg);
     }
@@ -167,6 +169,7 @@ nni_task_exec(nni_task *task)
     nni_mtx_lock(&task->task_mtx);
     task->task_busy--;
     if (task->task_busy == 0) {
+        // 唤醒等待线程
         nni_cv_wake(&task->task_cv);
     }
     nni_mtx_unlock(&task->task_mtx);
@@ -180,6 +183,7 @@ nni_task_dispatch(nni_task *task)
     // If there is no callback to perform, then do nothing!
     // The user will be none the wiser.
     if (task->task_cb == NULL) {
+        // 直接执行
         nni_task_exec(task);
         return;
     }

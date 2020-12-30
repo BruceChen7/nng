@@ -91,6 +91,7 @@ struct nni_socket {
 
     nni_list s_listeners; // active listeners
     nni_list s_dialers;   // active dialers
+    // nni_socket实例可能对应多个逻辑connection
     nni_list s_pipes;     // active pipes
     nni_list s_ctxs;      // active contexts (protected by global sock_lk)
 
@@ -555,6 +556,7 @@ sock_destroy(nni_sock *s)
     nni_free(s, s->s_size);
 }
 
+// 初始化一协议实例
 static int
 nni_sock_create(nni_sock **sp, const nni_proto *proto)
 {
@@ -691,7 +693,7 @@ nni_sock_open(nni_sock **sockp, const nni_proto *proto)
     if (nni_id_alloc(&sock_ids, &s->s_id, s) != 0) {
         sock_destroy(s);
     } else {
-        // 存放到全局的李彪中
+        // 存放到全局的列表中
         nni_list_append(&sock_list, s);
         // 调用协议本身来打开， 比如req0协议，这个函数啥都不干
         s->s_sock_ops.sock_open(s->s_data);
@@ -911,7 +913,7 @@ nni_sock_recv(nni_sock *sock, nni_aio *aio)
 {
     // 设置超时时间
     nni_aio_normalize_timeout(aio, sock->s_rcvtimeo);
-    // 找到对应的协议实现
+    // 从协议sock中直接receive
     sock->s_sock_ops.sock_recv(sock->s_data, aio);
 }
 
@@ -1652,11 +1654,13 @@ nni_dialer_reap(nni_dialer *d)
     nni_dialer_destroy(d);
 }
 
-// 对于服务端accept后会创建pipe，也就是accept后的new fd对应 connection
+// 对于服务端listern会创建pipe
+// 给listen添加新pipe
+// tpipe时给传输层用的参数nni_pipe->p_tran_data
 void
 nni_listener_add_pipe(nni_listener *l, void *tpipe)
 {
-    // listen socket
+    // 理解为协议实例
     nni_sock *s = l->l_sock;
     nni_pipe *p;
 
@@ -1669,6 +1673,7 @@ nni_listener_add_pipe(nni_listener *l, void *tpipe)
         return;
     }
 
+    // listen pipe管道添加
     nni_list_append(&l->l_pipes, p);
     // 添加active的pipes
     nni_list_append(&s->s_pipes, p);

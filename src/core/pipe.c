@@ -127,6 +127,7 @@ nni_pipe_id(nni_pipe *p)
 void
 nni_pipe_recv(nni_pipe *p, nni_aio *aio)
 {
+    // 从传输层receive数据
     p->p_tran_ops.p_recv(p->p_tran_data, aio);
 }
 
@@ -247,7 +248,7 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 {
     nni_pipe *          p;
     int                 rv;
-    // 获取应用层协议socket
+    // 获取应用层协议rep0_sock
     void *              sdata = nni_sock_proto_data(sock);
     // 协议pipe ops的数据
     nni_proto_pipe_ops *pops  = nni_sock_proto_pipe_ops(sock);
@@ -293,8 +294,8 @@ pipe_create(nni_pipe **pp, nni_sock *sock, nni_tran *tran, void *tdata)
 
     // 调用传输层的初始化
     if ((rv != 0) || ((rv = p->p_tran_ops.p_init(tdata, p)) != 0) ||
-        // 实际上调用req0_pipe_init等
-        // sData 是 req0_sock
+        // 实际上调用rep0_pipe_init等
+        // sData 是 rep0_sock
         ((rv = pops->pipe_init(p->p_proto_data, p, sdata)) != 0)) {
         nni_pipe_close(p);
         nni_pipe_rele(p);

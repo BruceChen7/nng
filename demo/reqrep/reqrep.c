@@ -70,6 +70,7 @@ showdate(time_t now)
 int
 server(const char *url)
 {
+    // 实际上就是一个id值
     nng_socket sock;
     int        rv;
 
