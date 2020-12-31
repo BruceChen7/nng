@@ -109,6 +109,7 @@ nni_device_init(nni_device_data **dp, nni_sock *s1, nni_sock *s2)
 	bool             raw;
 	size_t           rsz;
 
+    // 回环路由
 	// Specifying either of these as null turns the device into
 	// a loopback reflector.
 	if (s1 == NULL) {
@@ -221,6 +222,7 @@ nni_device(nni_sock *s1, nni_sock *s2)
 	nni_aio *        aio;
 	int              rv;
 
+    // 分配一个异步io操作
 	if ((rv = nni_aio_alloc(&aio, NULL, NULL)) != 0) {
 		return (rv);
 	}

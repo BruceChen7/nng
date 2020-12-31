@@ -515,6 +515,7 @@ nni_msg_header_append(nni_msg *m, const void *data, size_t len)
         return (NNG_EINVAL);
     }
     memcpy(((uint8_t *) m->m_header_buf) + m->m_header_len, data, len);
+    // 更更新header len
     m->m_header_len += len;
     return (0);
 }

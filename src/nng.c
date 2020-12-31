@@ -1094,6 +1094,7 @@ nng_pipe_notify(nng_socket s, nng_pipe_ev ev, nng_pipe_cb cb, void *arg)
     return (0);
 }
 
+// 路由两个s通信实例
 int
 nng_device(nng_socket s1, nng_socket s2)
 {

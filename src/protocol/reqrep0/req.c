@@ -751,6 +751,7 @@ static void
 req0_sock_send(void *arg, nni_aio *aio)
 {
     req0_sock *s = arg;
+    // 发送实例
     req0_ctx_send(&s->master, aio);
 }
 
@@ -915,5 +916,6 @@ static nni_proto req0_proto = {
 int
 nng_req0_open(nng_socket *sock)
 {
+    // req协议
     return (nni_proto_open(sock, &req0_proto));
 }

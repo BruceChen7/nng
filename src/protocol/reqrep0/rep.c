@@ -38,6 +38,7 @@ struct rep0_ctx {
     nni_list_node sqnode;
     nni_list_node rqnode;
     size_t        btrace_len;
+    // 最多15跳
     uint32_t      btrace[NNI_MAX_MAX_TTL + 1];
 };
 
@@ -139,6 +140,7 @@ rep0_ctx_cancel_send(nni_aio *aio, void *arg, int rv)
     nni_aio_finish_error(aio, rv);
 }
 
+// 应用层上下文要发送数据
 static void
 rep0_ctx_send(void *arg, nni_aio *aio)
 {
@@ -213,6 +215,7 @@ rep0_ctx_send(void *arg, nni_aio *aio)
 
     ctx->saio  = aio;
     ctx->spipe = p;
+    // 添加等待发送的上下文
     nni_list_append(&p->sendq, ctx);
     nni_mtx_unlock(&s->lk);
 }
@@ -402,6 +405,7 @@ rep0_pipe_send_cb(void *arg)
     nni_msg *  msg;
     size_t     len;
 
+    // 写的结果出错，那么直接
     if (nni_aio_result(&p->aio_send) != 0) {
         nni_msg_free(nni_aio_get_msg(&p->aio_send));
         nni_aio_set_msg(&p->aio_send, NULL);
@@ -410,6 +414,8 @@ rep0_pipe_send_cb(void *arg)
     }
     nni_mtx_lock(&s->lk);
     p->busy = false;
+
+    // 等待写的上下文没有，那么唤醒实例
     if ((ctx = nni_list_first(&p->sendq)) == NULL) {
         // Nothing else to send.
         if (p->id == s->ctx.pipe_id) {
@@ -420,6 +426,7 @@ rep0_pipe_send_cb(void *arg)
         return;
     }
 
+    // 移除该等待实例
     nni_list_remove(&p->sendq, ctx);
     aio        = ctx->saio;
     ctx->saio  = NULL;
@@ -429,10 +436,12 @@ rep0_pipe_send_cb(void *arg)
     len        = nni_msg_len(msg);
     nni_aio_set_msg(aio, NULL);
     nni_aio_set_msg(&p->aio_send, msg);
+    // 发送数据
     nni_pipe_send(p->pipe, &p->aio_send);
 
     nni_mtx_unlock(&s->lk);
 
+    // 同步发送结果
     nni_aio_finish_sync(aio, 0, len);
 }
 
@@ -573,10 +582,15 @@ rep0_pipe_recv_cb(void *arg)
         // 消息body
         body = nni_msg_body(msg);
         // 最后一个
+        // 具体协议可以见
+        // https://github.com/nanomsg/nanomsg/blob/master/rfc/sp-request-reply-01.txt
+        // 每个消息的格式如下
+        //   +-+------------+-+------------+   +-+------------+-------------+
+        //      |0| Channel ID |0| Channel ID |...|1| Request ID |   payload   |
+        //   +-+------------+-+------------+   +-+------------+ ------------+
         end  = ((body[0] & 0x80u) != 0);
 
-        // 将头是4个字节拷贝到header中
-        // 将消息body拷贝到msgheader中
+        // 这4个字节都是header
         if (nni_msg_header_append(msg, body, 4) != 0) {
             // Out of memory, so drop it.
             goto drop;
@@ -607,13 +621,13 @@ rep0_pipe_recv_cb(void *arg)
         // No one waiting to receive yet, holding pattern.
         // 目前等待接收的实例没有，那么暂时保存起来
         nni_list_append(&s->recvpipes, p);
-        // 欢迎一次poller
+        // 唤醒s可读
         nni_pollable_raise(&s->readable);
         nni_mtx_unlock(&s->lk);
         return;
     }
 
-    // 从等待接收的列表中
+    // 从等待接收的列表中中移除等待的上下文
     nni_list_remove(&s->recvq, ctx);
     aio       = ctx->raio;
     ctx->raio = NULL;
@@ -629,10 +643,11 @@ rep0_pipe_recv_cb(void *arg)
     nni_pipe_recv(p->pipe, &p->aio_recv);
 
     ctx->btrace_len = len;
-    // 将消息头拷贝到bt trace中
+    // 将消息的路由信息拷贝到bt_trace中
     memcpy(ctx->btrace, nni_msg_header(msg), len);
     // 设置header 为0
     nni_msg_header_clear(msg);
+    // 设置等待实例对应的管道id
     ctx->pipe_id = p->id;
 
     nni_mtx_unlock(&s->lk);
