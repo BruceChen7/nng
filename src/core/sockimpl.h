@@ -105,7 +105,7 @@ struct nni_pipe {
     // 传入的c
     void *             p_tran_data;
     // 传入的是各个协议的pipe实现
-    void *             p _proto_data;
+    void *             p_proto_data;
     nni_list_node      p_sock_node;
     nni_list_node      p_ep_node;
     nni_sock *         p_sock;
